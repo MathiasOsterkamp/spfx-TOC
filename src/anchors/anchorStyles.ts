@@ -1,5 +1,4 @@
 import { ITheme, mergeStyleSets } from '@fluentui/react/lib/Styling';
-import { getPageTheme } from './pageTheme';
 import { getGlobal } from './globalRegistry';
 
 /**
@@ -31,11 +30,10 @@ export interface IAnchorClassNames {
 
 /** Page-wide class sets per theme so cleanup also works across bundles. */
 const holder: { cache: { [themeKey: string]: IAnchorClassNames } } =
-  getGlobal('anchorClassNames.v4', () => ({ cache: {} }));
+  getGlobal('anchorClassNames.v6', () => ({ cache: {} }));
 
-/** Class names for the given theme (default: page theme). Created once per set of theme colors used. */
-export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
-  const t: ITheme = theme || getPageTheme();
+/** Class names for the given theme. Created once per set of theme colors used. */
+export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
   const focusBorder: string = t.semanticColors.focusBorder || t.palette.neutralSecondary;
   const key: string = `${t.palette.themePrimary}|${focusBorder}`;
   if (holder.cache[key]) {
@@ -65,6 +63,7 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
       color: t.palette.themePrimary,
       selectors: {
         ':focus': visible,
+        ':hover': visible,
         ':focus > &': visible,
         ':hover > &': visible,
         [`:focus:not(:active) .${GLYPH_STATIC_CLASS}`]: {
@@ -90,12 +89,15 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
     hidden: {
       height: 0
     },
-    // Target created from an {anchor-#id} marker, contains a link icon that is shown on hover/focus
+    // Target created from an {anchor-#id} marker. The icon inside is shown when the target itself
+    // or its parent (paragraph/section) is hovered, and on keyboard focus.
+    // Hover rules sit on the target (&:hover), so they also match when the icon inside is hovered.
     inlineAnchor: {
       display: 'inline',
       selectors: {
-        [`:hover > & .${INLINE_LINK_STATIC_CLASS}`]: visible,
-        [`:focus-within .${INLINE_LINK_STATIC_CLASS}`]: visible
+        '&:hover > a': visible,
+        ':hover > & > a': visible,
+        '&:focus-within > a': visible
       }
     },
     // Modifier for the shared anchor icon inside an inline target: in text flow instead of absolute

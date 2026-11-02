@@ -1,6 +1,7 @@
 import { Log, Text } from '@microsoft/sp-core-library';
 import { ANCHOR_STATIC_CLASS, GLYPH_STATIC_CLASS, IAnchorClassNames, getAnchorClassNames } from './anchorStyles';
 import { ITheme } from '@fluentui/react/lib/Styling';
+import { getPageTheme } from './pageTheme';
 
 export const LOG_SOURCE: string = 'AnchorService';
 
@@ -20,7 +21,7 @@ export const HEADING_TAGS: string[] = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
 
 /** CSS classes of the anchors (mergeStyleSets, created once per theme; default: page theme). */
 export function cls(theme?: ITheme): IAnchorClassNames {
-  return getAnchorClassNames(theme);
+  return getAnchorClassNames(theme || getPageTheme());
 }
 
 export { ANCHOR_STATIC_CLASS };
