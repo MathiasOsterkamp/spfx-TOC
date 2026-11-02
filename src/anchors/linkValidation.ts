@@ -1,4 +1,5 @@
 import { MAX_SLUG_LENGTH } from './inlineAnchors';
+import { INVALID_ANCHOR_ID_CHARS } from './anchorIds';
 
 /**
  * Validation of custom links (title + URL) in the table of contents.
@@ -41,9 +42,13 @@ const CONTROL_CHARS: RegExp = /[\u0000-\u001F\u007F]/;
 // eslint-disable-next-line no-control-regex
 export const allowedCharsRegEx: RegExp = /^[^\u0000-\u001F\u007F]+$/;
 
-/** Characters that can never occur in an anchor (after decoding). */
+/**
+ * Characters that can never occur in an anchor ID (after decoding): the ones the ID allocation
+ * replaces (INVALID_ANCHOR_ID_CHARS, so validation and allocation cannot drift apart) plus control characters.
+ * Non-global copy, a global RegExp keeps state between test() calls.
+ */
 // eslint-disable-next-line no-control-regex
-const INVALID_FRAGMENT_CHARS: RegExp = /[\s#"<>`{}|\\^\u0000-\u001F\u007F]/;
+const INVALID_FRAGMENT_CHARS: RegExp = new RegExp(`${INVALID_ANCHOR_ID_CHARS.source}|[\\u0000-\\u001F\\u007F]`);
 
 /** Take link text from a heading: remove control characters/line breaks, truncate. */
 export function cleanLinkTitle(text: string): string {
@@ -94,6 +99,11 @@ export function validateLinkUrl(value: string): LinkValidationError | undefined 
   const hashIndex: number = url.indexOf('#');
   if (hashIndex >= 0) {
     const fragment: string = url.substring(hashIndex + 1);
+    // Only anchors of THIS page must follow our ID rules; fragments of other pages/sites
+    // (e.g. "#page=2", "#/route?x=1") are arbitrary and are not judged.
+    if (!isSamePageUrl(url, hashIndex)) {
+      return undefined;
+    }
     if (!fragment) {
       return 'urlEmptyAnchor';
     }
@@ -110,24 +120,26 @@ export function validateLinkUrl(value: string): LinkValidationError | undefined 
   return undefined;
 }
 
+/** Does the URL (with a '#' at hashIndex) point to the current page? "#id" always does. */
+function isSamePageUrl(url: string, hashIndex: number): boolean {
+  if (hashIndex === 0) {
+    return true;
+  }
+  const a: HTMLAnchorElement = document.createElement('a');
+  a.href = url;
+  const normalize: (p: string) => string = (p: string) => (p.charAt(0) === '/' ? p : `/${p}`).toLowerCase();
+  return a.hostname.toLowerCase() === window.location.hostname.toLowerCase() &&
+    normalize(a.pathname) === normalize(window.location.pathname);
+}
+
 /**
  * Does the URL point to an anchor on the current page? Then its (decoded) ID, otherwise undefined.
  */
 export function getSamePageAnchorId(value: string): string | undefined {
   const url: string = (value || '').trim();
   const hashIndex: number = url.indexOf('#');
-  if (hashIndex < 0 || hashIndex === url.length - 1) {
+  if (hashIndex < 0 || hashIndex === url.length - 1 || !isSamePageUrl(url, hashIndex)) {
     return undefined;
-  }
-  if (hashIndex > 0) {
-    const a: HTMLAnchorElement = document.createElement('a');
-    a.href = url;
-    const normalize: (p: string) => string = (p: string) => (p.charAt(0) === '/' ? p : `/${p}`).toLowerCase();
-    const samePage: boolean = a.hostname.toLowerCase() === window.location.hostname.toLowerCase() &&
-      normalize(a.pathname) === normalize(window.location.pathname);
-    if (!samePage) {
-      return undefined;
-    }
   }
   try {
     return decodeURIComponent(url.substring(hashIndex + 1));
