@@ -160,6 +160,8 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     }
     const link: HTMLAnchorElement = AnchorZone._createAnchorIconElement();
     link.className = `${link.className} ${cls().inlineLink} ${INLINE_LINK_STATIC_CLASS}`;
+    // Non-breaking space: gives the otherwise empty target a hoverable area
+    target.appendChild(document.createTextNode('\u00A0'));
     target.appendChild(link);
     return link;
   }
@@ -181,24 +183,31 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     wrapper.appendChild(link);
     wrapper.className = `anchor-${target.tagName.toLowerCase()} ${cls().headingWrapper}`;
 
-    const offset: number = (parseInt(getComputedStyle(target).lineHeight || '0', 10) - link.offsetHeight) / 2;
     const placeholder: HTMLSpanElement = document.createElement('span');
     placeholder.className = cls().anchor;
+    // In text flow (not absolute) so its rect reflects the line box at the end of the text
+    placeholder.style.position = 'static';
     this._insertPlaceholder(placeholder, target);
 
-    wrapper.onmouseover = () => this._setAnchorPosition(offset, link, placeholder);
-    link.onfocus = () => this._setAnchorPosition(offset, link, placeholder);
+    wrapper.onmouseover = () => this._setAnchorPosition(wrapper, link, placeholder);
+    link.onfocus = () => this._setAnchorPosition(wrapper, link, placeholder);
 
     return link;
   }
 
-  /** Position the icon right after the end of the heading text. */
-  private _setAnchorPosition(offset: number, link: HTMLElement, placeholder: HTMLElement): void {
-    const left: number = isRTL()
-      ? placeholder.offsetLeft - link.offsetWidth - 5
-      : placeholder.offsetLeft;
+  /**
+   * Position the icon right after the end of the heading text.
+   * Uses bounding rects relative to the wrapper, so it does not matter which element is the offsetParent
+   * of the placeholder (headings are often positioned themselves and have margins).
+   */
+  private _setAnchorPosition(wrapper: HTMLElement, link: HTMLElement, placeholder: HTMLElement): void {
+    const wrapperRect: ClientRect = wrapper.getBoundingClientRect();
+    const placeholderRect: ClientRect = placeholder.getBoundingClientRect();
+    const textLeft: number = placeholderRect.left - wrapperRect.left;
+    const left: number = isRTL() ? textLeft - link.offsetWidth - 5 : textLeft;
+    const top: number = placeholderRect.top - wrapperRect.top + (placeholderRect.height - link.offsetHeight) / 2;
     link.style.left = `${left}px`;
-    link.style.top = `${placeholder.offsetTop + (isNaN(offset) ? 0 : offset)}px`;
+    link.style.top = `${isNaN(top) ? 0 : top}px`;
   }
 
   /** Insert the placeholder before the first <br>, otherwise at the end. */
