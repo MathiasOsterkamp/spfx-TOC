@@ -49,9 +49,9 @@ export function normalizeEngineConfig(raw: any): IAnchorEngineConfig {
   };
 }
 
-export function selectorForLevels(levels: number[]): string {
+export function selectorForLevels(levels: number[], isEditMode: boolean = false): string {
   const has = (n: number): boolean => levels.indexOf(n) >= 0;
-  return getQuerySelector(has(1), has(2), has(3), has(4), has(5));
+  return getQuerySelector(has(1), has(2), has(3), has(4), has(5), isEditMode);
 }
 
 type EngineListener = () => void;
@@ -86,9 +86,14 @@ class AnchorEngineState {
     return this._config;
   }
 
-  /** Heading selector used by the engine. */
+  /** Heading selector used by the engine (edit mode: also the page title textarea). */
+  public getHeadingSelector(isEditMode: boolean = false): string {
+    return selectorForLevels((this._config || DEFAULT_ENGINE_CONFIG).headingLevels, isEditMode);
+  }
+
+  /** Heading selector used by the engine in view mode. */
   public get headingSelector(): string {
-    return selectorForLevels((this._config || DEFAULT_ENGINE_CONFIG).headingLevels);
+    return this.getHeadingSelector(false);
   }
 
   /** Web parts report their displayMode here (true = edit). */

@@ -4,6 +4,7 @@ import { IAnchorCandidate, collectAnchorCandidates } from './anchorCollector';
 import { isExcludedElement, resolveContentRoot } from './contentRoot';
 import { ElementFilter } from './elementFilters';
 import { cleanLinkTitle } from './linkValidation';
+import { PAGE_TITLE_TEXTAREA_SELECTOR } from './inlineAnchors';
 
 /** Predicted anchor – same shape as the entries of the AnchorService. */
 export type IAvailableAnchor = ISortedAnchor;
@@ -27,11 +28,16 @@ export interface IAnchorCatalogOptions {
  */
 export function getAvailableAnchors(options: IAnchorCatalogOptions): ISortedAnchor[] {
   const root: HTMLElement = resolveContentRoot(options.contentSelector);
+  // The page title field is outside the canvas; it is part of the heading selector in edit mode only
+  const titleField: HTMLElement | null = options.headingSelector.indexOf(PAGE_TITLE_TEXTAREA_SELECTOR) >= 0
+    ? document.querySelector(PAGE_TITLE_TEXTAREA_SELECTOR) as HTMLElement | null
+    : null;
   const candidates: IAnchorCandidate[] = collectAnchorCandidates(root, {
     headingSelector: options.headingSelector,
     filter: (el: HTMLElement) => !isExcludedElement(el) && (!options.filter || options.filter(el)),
     includeInline: options.includeInline !== false,
-    includeUnconvertedMarkers: true
+    includeUnconvertedMarkers: true,
+    extraElements: titleField ? [titleField] : []
   });
   const ids: string[] = assignAnchorIds(candidates);
 

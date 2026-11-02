@@ -105,7 +105,7 @@ export function usePredictedAnchors(enabled: boolean = true): IPredictedAnchorsS
   const refresh = React.useCallback((): void => {
     const config: IAnchorEngineConfig = anchorEngine.config || DEFAULT_ENGINE_CONFIG;
     const next: ISortedAnchor[] = getAvailableAnchors({
-      headingSelector: anchorEngine.headingSelector,
+      headingSelector: anchorEngine.getHeadingSelector(true),
       filter: defaultTocFilter,
       contentSelector: config.contentSelector,
       includeInline: config.convertInlineAnchors

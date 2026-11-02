@@ -35,11 +35,15 @@ export interface ICollectAnchorsOptions {
   includeInline: boolean;
   /** Also include markers still present as text (edit mode / prediction). */
   includeUnconvertedMarkers?: boolean;
+  /** Additional heading-like elements outside the root (e.g. the page title field). */
+  extraElements?: HTMLElement[];
 }
 
 /** Heading text as shown in view mode (markers are already removed there). */
 export function getHeadingText(element: HTMLElement): string {
-  return stripInlineMarkers(element.textContent || '').trim();
+  // The page title in edit mode is a textarea: the current text is its value, not its textContent
+  const raw: string = element.tagName === 'TEXTAREA' ? (element as HTMLTextAreaElement).value : element.textContent || '';
+  return stripInlineMarkers(raw).trim();
 }
 
 /**
@@ -57,6 +61,11 @@ export function collectAnchorCandidates(root: HTMLElement, options: ICollectAnch
     } catch (e) {
       headings = [];
     }
+    (options.extraElements || []).forEach((extra: HTMLElement) => {
+      if (headings.indexOf(extra) < 0) {
+        headings.push(extra);
+      }
+    });
     headings.filter(keep).forEach((el: HTMLElement) => {
       items.push({
         node: el,

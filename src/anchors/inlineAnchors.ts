@@ -25,6 +25,9 @@ export const INLINE_ANCHOR_ATTR: string = 'data-spfx-inline-anchor';
 /** Markers are never searched/replaced inside these elements. */
 const SKIP_TAGS: string[] = ['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'CODE', 'PRE'];
 
+/** Page title field in edit mode (an H1 in view mode). */
+export const PAGE_TITLE_TEXTAREA_SELECTOR: string = 'textarea[data-automation-id="pageTitleInput"]';
+
 /**
  * Returns a query selector based on the specified props.
  * Matches native HTML headings, ARIA heading roles,
@@ -48,7 +51,7 @@ export function getQuerySelector(
     add(1);
     // Page title field only in edit mode
     if (isEditMode) {
-      queryParts.push('textarea[data-automation-id="pageTitleInput"]');
+      queryParts.push(PAGE_TITLE_TEXTAREA_SELECTOR);
     }
   }
   if (showHeading2) { add(2); }

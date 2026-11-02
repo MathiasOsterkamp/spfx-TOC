@@ -57,6 +57,10 @@ export function getHeadingLevel(element: HTMLElement): number {
   if (HEADING_TAGS.indexOf(tag) >= 0) {
     return parseInt(tag.substring(1), 10);
   }
+  if (tag === 'TEXTAREA') {
+    // page title field in edit mode
+    return 1;
+  }
   const ariaLevel: number = parseInt(element.getAttribute('aria-level') || '', 10);
   return isNaN(ariaLevel) ? 6 : ariaLevel;
 }
