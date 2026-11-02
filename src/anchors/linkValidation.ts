@@ -20,6 +20,7 @@ export type LinkValidationError =
   | 'urlTooLong'
   | 'urlInvalidChars'
   | 'urlUnsafeScheme'
+  | 'urlNotAbsolute'
   | 'urlEmptyAnchor'
   | 'urlInvalidAnchor';
 
@@ -94,6 +95,10 @@ export function validateLinkUrl(value: string): LinkValidationError | undefined 
   const scheme: RegExpExecArray | null = /^([a-z][a-z0-9+.\-]*):/i.exec(url);
   if (scheme && SAFE_URL_SCHEMES.indexOf(`${scheme[1].toLowerCase()}:`) < 0) {
     return 'urlUnsafeScheme';
+  }
+  // Without a scheme only "#anchor" (this page) and site-relative "/path" are allowed; "test#anchor" is neither
+  if (!scheme && !/^[#/]/.test(url)) {
+    return 'urlNotAbsolute';
   }
 
   const hashIndex: number = url.indexOf('#');

@@ -43,7 +43,8 @@ define([], function() {
     "ErrorUrlRequired": "Bitte eine URL oder eine Sprungmarke (#…) eingeben.",
     "ErrorUrlTooLong": "Die URL darf höchstens {0} Zeichen lang sein.",
     "ErrorUrlInvalidChars": "Die URL enthält unzulässige Zeichen (< > \" ` oder Steuerzeichen).",
-    "ErrorUrlUnsafeScheme": "Nur http, https, mailto und tel sowie relative Adressen sind erlaubt.",
+    "ErrorUrlUnsafeScheme": "Nur http-, https-, mailto- und tel-Adressen sind erlaubt.",
+    "ErrorUrlNotAbsolute": "Gib eine vollständige Adresse (https://…), einen Pfad mit / am Anfang oder nur eine Sprungmarke (#id) ein.",
     "ErrorUrlEmptyAnchor": "Nach dem # fehlt der Name der Sprungmarke.",
     "ErrorUrlInvalidAnchor": "Die Sprungmarke nach dem # ist ungültig (keine Leerzeichen und keine Zeichen wie # { } | \\ ^).",
 

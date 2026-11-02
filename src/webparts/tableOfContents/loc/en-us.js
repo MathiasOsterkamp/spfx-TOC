@@ -43,7 +43,8 @@ define([], function() {
     "ErrorUrlRequired": "Please enter a URL or an anchor (#…).",
     "ErrorUrlTooLong": "The URL must not be longer than {0} characters.",
     "ErrorUrlInvalidChars": "The URL contains invalid characters (< > \" ` or control characters).",
-    "ErrorUrlUnsafeScheme": "Only http, https, mailto, tel and relative addresses are allowed.",
+    "ErrorUrlUnsafeScheme": "Only http, https, mailto and tel addresses are allowed.",
+    "ErrorUrlNotAbsolute": "Enter a full address (https://…), a path starting with / or only an anchor (#id).",
     "ErrorUrlEmptyAnchor": "The anchor name after # is missing.",
     "ErrorUrlInvalidAnchor": "The anchor after # is invalid (no spaces and no characters such as # { } | \\ ^).",
 

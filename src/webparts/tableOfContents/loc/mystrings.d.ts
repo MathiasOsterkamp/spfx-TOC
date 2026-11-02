@@ -43,6 +43,7 @@ declare interface ITableOfContentsWebPartStrings {
   ErrorUrlTooLong: string;
   ErrorUrlInvalidChars: string;
   ErrorUrlUnsafeScheme: string;
+  ErrorUrlNotAbsolute: string;
   ErrorUrlEmptyAnchor: string;
   ErrorUrlInvalidAnchor: string;
 

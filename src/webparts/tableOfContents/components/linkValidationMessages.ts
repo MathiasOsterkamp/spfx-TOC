@@ -19,6 +19,7 @@ export function getValidationMessage(error: LinkValidationError | undefined): st
     case 'urlTooLong': return Text.format(strings.ErrorUrlTooLong, MAX_URL_LENGTH);
     case 'urlInvalidChars': return strings.ErrorUrlInvalidChars;
     case 'urlUnsafeScheme': return strings.ErrorUrlUnsafeScheme;
+    case 'urlNotAbsolute': return strings.ErrorUrlNotAbsolute;
     case 'urlEmptyAnchor': return strings.ErrorUrlEmptyAnchor;
     case 'urlInvalidAnchor': return strings.ErrorUrlInvalidAnchor;
     default: return strings.ErrorUrlInvalidChars;

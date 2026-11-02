@@ -43,7 +43,8 @@ define([], function() {
     "ErrorUrlRequired": "Veuillez saisir une URL ou une ancre (#…).",
     "ErrorUrlTooLong": "L’URL ne doit pas dépasser {0} caractères.",
     "ErrorUrlInvalidChars": "L’URL contient des caractères non autorisés (< > \" ` ou caractères de contrôle).",
-    "ErrorUrlUnsafeScheme": "Seuls http, https, mailto, tel et les adresses relatives sont autorisés.",
+    "ErrorUrlUnsafeScheme": "Seules les adresses http, https, mailto et tel sont autorisées.",
+    "ErrorUrlNotAbsolute": "Saisissez une adresse complète (https://…), un chemin commençant par / ou uniquement une ancre (#id).",
     "ErrorUrlEmptyAnchor": "Le nom de l’ancre après # est manquant.",
     "ErrorUrlInvalidAnchor": "L’ancre après # n’est pas valide (pas d’espaces ni de caractères comme # { } | \\ ^).",
 
