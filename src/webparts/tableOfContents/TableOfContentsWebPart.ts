@@ -1,281 +1,238 @@
 import * as React from 'react';
 import * as ReactDom from 'react-dom';
-
-import { CANVAS_ID } from './constants/constants';
-
-import { ITableOfContentsProps } from './interfaces/ITableOfContentsProps';
-import { IReadonlyTheme } from '@microsoft/sp-component-base';
+import { DisplayMode } from '@microsoft/sp-core-library';
 import {
-	IPropertyPaneChoiceGroupOption,
-	type IPropertyPaneConfiguration,
-	IPropertyPaneDropdownOption,
-	PropertyPaneButton,
-	PropertyPaneChoiceGroup,
-	PropertyPaneHorizontalRule,
-	PropertyPaneLabel,
-	PropertyPaneToggle,
-} from '@microsoft/sp-property-pane';
-import { Version } from '@microsoft/sp-core-library';
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
+  BaseClientSideWebPart,
+  IPropertyPaneConfiguration,
+  IPropertyPaneField,
+  PropertyPaneCheckbox,
+  PropertyPaneDropdown,
+  PropertyPaneLabel,
+  PropertyPaneToggle
+} from '@microsoft/sp-webpart-base';
+import {
+  CustomCollectionFieldType,
+  ICustomCollectionField,
+  PropertyFieldCollectionData
+} from '@pnp/spfx-property-controls/lib/PropertyFieldCollectionData';
 
-import { PropertyFieldMultiSelect } from '@pnp/spfx-property-controls/lib/PropertyFieldMultiSelect';
-// import {
-// 	IPropertyFieldSwatchColorOption,
-// 	PropertyFieldSwatchColorPicker,
-// 	PropertyFieldSwatchColorPickerStyle,
-// } from '@pnp/spfx-property-controls/lib/PropertyFieldSwatchColorPicker';
-
+import * as strings from 'TableOfContentsWebPartStrings';
+import { anchorEngine, pageNavigation } from '../../anchors';
 import TableOfContents from './components/TableOfContents';
+import { ITableOfContentsProps, SourceType } from './components/ITableOfContentsProps';
+import { ICustomLink, toCustomLinks } from './components/Link';
+import { LinkDropdown } from './components/LinkDropdown';
+import { getUrlErrorMessage } from './components/linkValidationMessages';
 
-import { getCanvasNode } from './components/toc/fnGetCanvasNodeText';
+export interface ITableOfContentsWebPartProps {
+  titleText: string;
+  hideTitle: boolean;
+  source: SourceType;
+  /** Custom links from PropertyFieldCollectionData (text from the previous version is migrated on load). */
+  links: ICustomLink[];
+  showHeading1: boolean;
+  showHeading2: boolean;
+  showHeading3: boolean;
+  showHeading4: boolean;
+  showHeading5: boolean;
+  hideInMobileView: boolean;
+  listStyle: string;
+}
 
-import styles from './components/TableOfContents.module.scss';
+export default class TableOfContentsWebPart extends BaseClientSideWebPart<ITableOfContentsWebPartProps> {
+  private _detachNavigation: (() => void) | undefined;
 
-export default class TableOfContentsWebPart extends BaseClientSideWebPart<ITableOfContentsProps> {
-	private _isDarkTheme: boolean = false;
-	private _isMarked: boolean = false; // used as flag for marking areas when clicking buttons
-	private _sectionAreas: number[] = []; // used for referencing when marking/unmarking areas
+  protected onInit(): Promise<void> {
+    // Page changes (the anchor service attaches as well; attaching multiple times is harmless)
+    this._detachNavigation = pageNavigation.attach(this.context);
+    return super.onInit();
+  }
 
-	public render(): void {
-		const element: React.ReactElement<ITableOfContentsProps> = React.createElement(
-			TableOfContents,
-			{
-				title: this.properties.title,
-				description: this.properties.description,
-				canvasIds: this.properties.canvasIds,
-				pinWebpartOnScroll: this.properties.pinWebpartOnScroll,
-				levels: this.properties.levels,
-				collapsibleHeader: this.properties.collapsibleHeader,
-				defaultCollapsed: this.properties.defaultCollapsed,
-				bgColor: this.properties.bgColor,
-				displayMode: this.displayMode,
-				// method to update property
-				updateProperty: (property: keyof ITableOfContentsProps, value: unknown) => {
-					switch (property) {
-						case 'title':
-							this.properties.title = value as string;
-							break;
-						case 'description':
-							this.properties.description = value as string;
-							break;
-						default:
-						// do nothing, action for other properties not required...
-					}
-				},
-				// default SPO SPFx web part properties
-				context: this.context,
-				isDarkTheme: this._isDarkTheme,
-				hasTeamsContext: !!this.context.sdks.microsoftTeams,
-			}
-		);
-		ReactDom.render(element, this.domElement);
-	}
+  public render(): void {
+    // In case the event was missed: check for a new page when rendering
+    pageNavigation.checkForPageChange('render');
 
-	protected onThemeChanged(currentTheme: IReadonlyTheme | undefined): void {
-		if (!currentTheme) {
-			return;
-		}
+    // Report edit mode to the anchor service (extension) – extensions have no displayMode
+    anchorEngine.reportEditMode(this.context.instanceId, this.displayMode === DisplayMode.Edit);
 
-		this._isDarkTheme = !!currentTheme.isInverted;
-		const { semanticColors } = currentTheme;
+    const p: ITableOfContentsWebPartProps = this.properties;
 
-		if (semanticColors) {
-			this.domElement.style.setProperty('--bodyText', semanticColors.bodyText || null);
-			this.domElement.style.setProperty('--link', semanticColors.link || null);
-			this.domElement.style.setProperty('--linkHovered', semanticColors.linkHovered || null);
-		}
-	}
+    const element: React.ReactElement<ITableOfContentsProps> = React.createElement(TableOfContents, {
+      webpartId: this.context.instanceId,
+      displayMode: this.displayMode,
 
-	protected onDispose(): void {
-		ReactDom.unmountComponentAtNode(this.domElement);
-	}
+      hideTitle: !!p.hideTitle,
+      titleTextValue: p.titleText,
+      setTitle: this._updateTitleOnWebpartProperties,
 
-	protected get dataVersion(): Version {
-		return Version.parse('1.0');
-	}
+      source: p.source === 'custom' ? 'custom' : 'auto',
+      customLinks: toCustomLinks(p.links),
 
-	protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
-		return {
-			pages: [
-				{
-					header: {
-						description:
-							'Change the settings for the table of contents below. The changes are automatically saved.',
-					},
-					groups: [
-						{
-							groupName: 'Content Area(s) and Levels',
-							groupFields: [
-								PropertyPaneLabel('', {
-									text: 'You can change the title and description directly in the web part on the page.',
-								}),
-								PropertyPaneHorizontalRule(),
-								PropertyFieldMultiSelect('canvasIds', {
-									key: 'canvasIds',
-									label: 'Choose content area(s)',
-									options: this.getCanvasSections(),
-									selectedKeys: this.properties.canvasIds,
-								}),
-								PropertyPaneButton('', {
-									text: this._isMarked
-										? 'Hide selected area'
-										: 'Show selected area',
-									disabled: this.properties.canvasIds === undefined,
-									icon: this._isMarked ? 'Hide3' : 'View',
-									onClick: () => {
-										// toggle marked area
-										this._toggleMarkedArea(
-											this.properties.canvasIds,
-											!this._isMarked
-										);
-									},
-								}),
-								PropertyPaneHorizontalRule(),
-								PropertyPaneChoiceGroup('levels', {
-									label: 'Levels to show',
-									options: this.getLevels(),
-								}),
-								PropertyPaneHorizontalRule(),
-								PropertyPaneToggle('pinWebpartOnScroll', {
-									label: 'Pin web part on scroll',
-									onText: 'Yes',
-									offText: 'No',
-								}),
-								PropertyPaneToggle('collapsibleHeader', {
-									label: 'Expand/Collapse header',
-									onText: 'Yes',
-									offText: 'No',
-								}),
-								PropertyPaneToggle('defaultCollapsed', {
-									label: 'By default, collapse header',
-									onText: 'Yes',
-									offText: 'No',
-									disabled: this.properties.collapsibleHeader === false,
-								}),
-								// PropertyFieldSwatchColorPicker('bgColor', {
-								// 	key: 'colorFieldId',
-								// 	label: 'Choose alternate background color',
-								// 	selectedColor: this.properties.bgColor,
-								// 	colors: this.getAlternateBGColors(),
-								// 	onPropertyChange: this.onPropertyPaneFieldChanged,
-								// 	properties: this.properties,
-								// 	showAsCircles: false,
-								// 	style: PropertyFieldSwatchColorPickerStyle.Full,
-								// }),
-							],
-						},
-					],
-				},
-			],
-		};
-	}
+      showHeading1: !!p.showHeading1,
+      showHeading2: !!p.showHeading2,
+      showHeading3: !!p.showHeading3,
+      showHeading4: !!p.showHeading4,
+      showHeading5: !!p.showHeading5,
 
-	protected onPropertyPaneFieldChanged(
-		propertyPath: string,
-		oldValue: unknown,
-		newValue: unknown
-	): void {
-		let _orderedAreas: number[] = [];
-		switch (propertyPath) {
-			case 'canvasId':
-				// switch off old area
-				this._toggleMarkedArea(oldValue as number, false);
-				// switch on new area
-				this._toggleMarkedArea(newValue as number, true);
-				break;
-			case 'canvasIds':
-				// make sure the selected areas are in order of appearance > sort the array
-				_orderedAreas = [...(newValue as number[])];
-				_orderedAreas.sort((a, b) => a - b);
-				// set property
-				this.properties.canvasIds = _orderedAreas;
-				// check if areas are marked
-				if (this._isMarked) {
-					this._toggleMarkedArea(this.properties.canvasIds, this._isMarked);
-				}
-				break;
-			default:
-			// do nothing > future use...
-		}
-	}
+      hideInMobileView: p.hideInMobileView === true,
+      listStyleValue: p.listStyle || 'default'
+    });
 
-	// private methods
+    ReactDom.render(element, this.domElement);
+  }
 
-	private getCanvasSections(): IPropertyPaneDropdownOption[] {
-		const _results: IPropertyPaneDropdownOption[] = [];
-		const _elms = document.querySelectorAll(CANVAS_ID);
+  /** Switching view <-> edit: re-render, the engine cleans up or rebuilds. */
+  protected onDisplayModeChanged(oldDisplayMode: DisplayMode): void {
+    this.render();
+  }
 
-		if (_elms && _elms.length > 0) {
-			// return canvas section areas as property pane choice groups
-			_elms.forEach((_elm, _index: number) => {
-				if (_elm) {
-					_results.push({
-						key: _index,
-						text: `Section ${_index + 1}`,
-					});
-					this._sectionAreas.push(_index);
-				}
-			});
-		}
-		// return areas
-		return _results;
-	}
+  protected onDispose(): void {
+    anchorEngine.reportEditMode(this.context.instanceId, false);
+    ReactDom.unmountComponentAtNode(this.domElement);
+    if (this._detachNavigation) {
+      this._detachNavigation();
+      this._detachNavigation = undefined;
+    }
+  }
 
-	private getLevels(): IPropertyPaneChoiceGroupOption[] {
-		return [
-			{ key: 'h1, h2, h3, h4, h5', text: 'H1, H2, H3, H4, H5' },
-			{ key: 'h1, h2, h3, h4', text: 'H1, H2, H3, H4' },
-			{ key: 'h1, h2, h3', text: 'H1, H2, H3' },
-			{ key: 'h1, h2', text: 'H1, H2' },
-		];
-	}
 
-	// private getAlternateBGColors(): IPropertyFieldSwatchColorOption[] {
-	// 	const _results: IPropertyFieldSwatchColorOption[] = [];
+  /** Fields of the custom links: title (dropdown with the page's anchors), URL, level. */
+  private _getLinkFields(): ICustomCollectionField[] {
+    return [
+      {
+        id: 'title',
+        title: strings.LinksColumnTitle,
+        type: CustomCollectionFieldType.custom,
+        required: true,
+        onCustomRender: (field: ICustomCollectionField, value: any, onUpdate: (fieldId: string, value: any) => void,
+          item: any, itemId: string, onCustomFieldValidation: (fieldId: string, errorMessage: string) => void) =>
+          React.createElement(LinkDropdown, {
+            key: itemId,
+            field: field,
+            value: value,
+            item: item,
+            onUpdate: onUpdate,
+            onCustomFieldValidation: onCustomFieldValidation
+          })
+      },
+      {
+        id: 'url',
+        title: strings.LinksColumnUrl,
+        type: CustomCollectionFieldType.string,
+        required: true,
+        placeholder: strings.LinksColumnUrlPlaceholder,
+        deferredValidationTime: 300,
+        onGetErrorMessage: (value: string) => getUrlErrorMessage(value)
+      },
+      {
+        id: 'level',
+        title: strings.LinksColumnLevel,
+        type: CustomCollectionFieldType.dropdown,
+        required: true,
+        defaultValue: 1,
+        options: [1, 2, 3, 4, 5].map((n: number) => ({ key: n, text: `${n}` }))
+      }
+    ];
+  }
 
-	// 	// get element where fluid UI defines all colors
-	// 	const _fluidElm: HTMLElement | null = document.querySelector(COLOR_DEFINITION_ELM);
-	// 	if (_fluidElm) {
-	// 		// iterate through each color and set result
-	// 		COLOR_VAR_LIST.forEach(_color => {
-	// 			// get the css color value
-	// 			const _colorVal: string = getComputedStyle(_fluidElm).getPropertyValue(_color);
-	// 			// add result to color array
-	// 			_results.push({
-	// 				color: _colorVal,
-	// 			});
-	// 		});
-	// 	}
-	// 	return _results;
-	// }
+  private _updateTitleOnWebpartProperties = (title: string): void => {
+    this.properties.titleText = title;
+  }
 
-	private _toggleMarkedArea(canvasId: number | number[], toggle: boolean): void {
-		// initialize
-		let _areasNrs: number[] = [];
-		// check parameter: number or number[]
-		if (typeof canvasId === 'object') {
-			_areasNrs = canvasId;
-		} else {
-			_areasNrs = [canvasId];
-		}
-		// iterate through all areas and toggle the marking
-		this._sectionAreas.forEach((_areasNr: number) => {
-			// get area
-			const _canvasItem: HTMLElement | undefined = getCanvasNode({
-				canvasId: _areasNr,
-			});
-			if (_canvasItem) {
-				const _toggleOn: boolean = toggle ? _areasNrs.indexOf(_areasNr) > -1 : false;
-				if (_toggleOn) {
-					// mark
-					_canvasItem.classList.add(styles.mark_area);
-				} else {
-					// unmark
-					_canvasItem.classList.remove(styles.mark_area);
-				}
-			}
-		});
-		// set flag
-		this._isMarked = toggle;
-	}
+  protected onPropertyPaneFieldChanged(propertyPath: string, oldValue: any, newValue: any): void {
+    super.onPropertyPaneFieldChanged(propertyPath, oldValue, newValue);
+    // Show different fields depending on the source
+    if (propertyPath === 'source' && oldValue !== newValue) {
+      this.context.propertyPane.refresh();
+    }
+  }
+
+  protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
+    let group: IPropertyPaneField<any>[];
+
+    if (this.properties.source !== 'custom') {
+      group = [
+        PropertyPaneLabel('showHeadingLevelsLabel', {
+          text: strings.ShowHeadingLevelsLabel
+        }),
+        PropertyPaneCheckbox('showHeading1', { text: strings.ShowHeading1FieldLabel }),
+        PropertyPaneCheckbox('showHeading2', { text: strings.ShowHeading2FieldLabel }),
+        PropertyPaneCheckbox('showHeading3', { text: strings.ShowHeading3FieldLabel }),
+        PropertyPaneCheckbox('showHeading4', { text: strings.ShowHeading4FieldLabel }),
+        PropertyPaneCheckbox('showHeading5', { text: strings.ShowHeading5FieldLabel })
+      ];
+    } else {
+      group = [
+        PropertyFieldCollectionData('links', {
+          key: 'links',
+          label: strings.LinksFieldLabel,
+          panelHeader: strings.LinksFieldPanelHeader,
+          panelDescription: strings.LinksFieldPanelDescription,
+          manageBtnLabel: strings.LinksFieldButtonLabel,
+          saveBtnLabel: strings.LinksFieldSaveLabel,
+          saveAndAddBtnLabel: strings.LinksFieldSaveAndAddLabel,
+          cancelBtnLabel: strings.LinksFieldCancelLabel,
+          value: toCustomLinks(this.properties.links),
+          enableSorting: true,
+          fields: this._getLinkFields()
+          // The PnP controls ship the property pane typings of newer SPFx versions (sp-property-pane);
+          // at runtime it is the same field object, so only a type cast is needed here.
+        }) as unknown as IPropertyPaneField<any>
+      ];
+    }
+
+    group.push(PropertyPaneDropdown('listStyle', {
+      label: strings.ListStyle,
+      options: [
+        { key: 'default', text: strings.ListStyleDefault },
+        { key: 'disc', text: strings.ListStyleDisc },
+        { key: 'circle', text: strings.ListStyleCircle },
+        { key: 'square', text: strings.ListStyleSquare },
+        { key: 'decimal', text: strings.ListStyleDecimal },
+        { key: 'none', text: strings.ListStyleNone }
+      ],
+      selectedKey: 'default'
+    }));
+
+    return {
+      pages: [
+        {
+          header: {
+            description: strings.PropertyPaneDescription
+          },
+          groups: [
+            {
+              groupName: strings.BasicGroupName,
+              groupFields: [
+                PropertyPaneDropdown('source', {
+                  label: strings.SourceFieldLabel,
+                  options: [
+                    { key: 'auto', text: strings.SourceAuto },
+                    { key: 'custom', text: strings.SourceCustom }
+                  ],
+                  selectedKey: 'auto'
+                }),
+                PropertyPaneToggle('hideTitle', { label: strings.HideTitleFieldLabel }),
+                PropertyPaneToggle('hideInMobileView', { label: strings.HideInMobileViewFieldLabel })
+              ]
+            },
+            {
+              groupName: strings.ContentGroupName,
+              groupFields: group
+            },
+            {
+              groupName: strings.AnchorsGroupName,
+              groupFields: [
+                PropertyPaneLabel('anchorServiceInfo', {
+                  text: anchorEngine.isRegistered
+                    ? `${strings.EngineActiveInfo} ${(anchorEngine.config ? anchorEngine.config.headingLevels : []).map((n: number) => `H${n}`).join(', ')}`
+                    : strings.EngineMissingHint
+                })
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  }
 }

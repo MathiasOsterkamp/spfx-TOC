@@ -1,6 +1,41 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/spfx-serve.schema.json",
+  "$schema": "https://dev.office.com/json-schemas/core-build/serve.schema.json",
   "port": 4321,
   "https": true,
-  "initialPage": "https://{tenantDomain}/_layouts/workbench.aspx"
+  "initialPage": "https://localhost:5432/workbench",
+  "api": {
+    "port": 5432,
+    "entryPath": "node_modules/@microsoft/sp-webpart-workbench/lib/api/"
+  },
+  "serveConfigurations": {
+    "default": {
+      "pageUrl": "https://contoso.sharepoint.com/sites/wissen/SitePages/Testseite.aspx",
+      "customActions": {
+        "38464b1c-f030-48cd-93ca-7b1be4f645d1": {
+          "location": "ClientSideExtension.ApplicationCustomizer",
+          "properties": {
+            "headingLevels": [1, 2, 3, 4, 5],
+            "showAnchorIcons": true,
+            "convertInlineAnchors": true,
+            "scrollToHashOnLoad": true,
+            "contentSelector": ""
+          }
+        }
+      }
+    },
+    "anchorService": {
+      "pageUrl": "https://contoso.sharepoint.com/sites/wissen/SitePages/Testseite.aspx",
+      "customActions": {
+        "38464b1c-f030-48cd-93ca-7b1be4f645d1": {
+          "location": "ClientSideExtension.ApplicationCustomizer",
+          "properties": {
+            "headingLevels": "2,3,4",
+            "showAnchorIcons": true,
+            "convertInlineAnchors": true,
+            "scrollToHashOnLoad": true
+          }
+        }
+      }
+    }
+  }
 }

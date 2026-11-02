@@ -1,9 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "$schema": "https://dev.office.com/json-schemas/spfx-build/config.2.0.schema.json",
   "version": "2.0",
   "bundles": {
-    "table-of-contents-web-part": {
+    "anchor-links": {
       "components": [
+        {
+          "entrypoint": "./lib/extensions/anchorService/AnchorServiceApplicationCustomizer.js",
+          "manifest": "./src/extensions/anchorService/AnchorServiceApplicationCustomizer.manifest.json"
+        },
         {
           "entrypoint": "./lib/webparts/tableOfContents/TableOfContentsWebPart.js",
           "manifest": "./src/webparts/tableOfContents/TableOfContentsWebPart.manifest.json"
@@ -13,7 +17,7 @@
   },
   "externals": {},
   "localizedResources": {
-    "TableOfContentsWebPartStrings": "lib/webparts/tableOfContents/loc/{locale}.js",
-    "PropertyControlStrings": "node_modules/@pnp/spfx-property-controls/lib/loc/{locale}.js"
+    "AnchorServiceApplicationCustomizerStrings": "lib/extensions/anchorService/loc/{locale}.js",
+    "TableOfContentsWebPartStrings": "lib/webparts/tableOfContents/loc/{locale}.js"
   }
 }

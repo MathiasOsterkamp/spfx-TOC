@@ -1,0 +1,10 @@
+{
+  "$schema": "https://dev.office.com/json-schemas/spfx/client-side-extension-manifest.schema.json",
+  "id": "38464b1c-f030-48cd-93ca-7b1be4f645d1",
+  "alias": "AnchorServiceApplicationCustomizer",
+  "componentType": "Extension",
+  "extensionType": "ApplicationCustomizer",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false
+}

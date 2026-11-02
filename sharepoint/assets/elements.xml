@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+  <!--
+    Attaches the anchor service to the site when the app is added.
+    Properties: headingLevels (1–5), showAnchorIcons, convertInlineAnchors, scrollToHashOnLoad, contentSelector
+  -->
+  <CustomAction
+    Title="AnchorService"
+    Location="ClientSideExtension.ApplicationCustomizer"
+    ClientSideComponentId="38464b1c-f030-48cd-93ca-7b1be4f645d1"
+    ClientSideComponentProperties="{&quot;headingLevels&quot;:[1,2,3,4,5],&quot;showAnchorIcons&quot;:true,&quot;convertInlineAnchors&quot;:true,&quot;scrollToHashOnLoad&quot;:true,&quot;contentSelector&quot;:&quot;&quot;}">
+  </CustomAction>
+</Elements>

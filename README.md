@@ -1,97 +1,121 @@
-# Web Part - Table of Contents
+# Sprungmarken (SPFx 1.4.1, React 16, Fluent UI 8)
 
-## Summary
+Port des SharePoint-internen `AnchorService` als **Application Customizer** plus **Inhaltsverzeichnis-Webpart**.
+Läuft auch auf **SharePoint 2019**, wo es keine eingebauten Sprungmarken gibt.
 
-This SPFx web part allows you to add a table of contents to any standard SharePoint Online modern page. By selecting one or more sections via a dropdown in the web part settings, it shows all the H1, H2, H3, etc in the selected sections. 
+| Komponente | Aufgabe |
+|---|---|
+| **AnchorService** (Application Customizer, `src/extensions/anchorService`) | Läuft auf jeder Seite der Website: vergibt IDs an Überschriften, Link-Symbol, wandelt `{anchor-#id}`-Marker um, springt zum `#hash` – auch nach Seitenwechsel und Bearbeiten |
+| **Inhaltsverzeichnis** (Webpart, `src/webparts/tableOfContents`) | Zeigt die Anker des Services als Baum oder eigene Links (`PropertyFieldCollectionData` mit Anker-Dropdown) |
 
-It works with any textual web part in the sections: **text web part** and/or **markdown web part**. It doesn't matter if you use more than one text web part or split a text web part into separate web parts divided by an image web part for example. This web part just looks in the selected section(s) and shows the heading(s) in the section(s).
+Beide liegen im Bundle `anchor-links`. Der gemeinsame Zustand (`anchorServiceManager`, Seitenwechsel,
+Konfiguration, CSS-Klassen) liegt zusätzlich am `window` (`__spfxAnchorService_v1`), damit Extension und
+Webpart sich auch in getrennten Bundles oder Versionen dieselben Anker teilen.
 
-When you're viewing the page, the heading in the viewport (visible area of the page) will be marked. Clicking on a heading will smoothly scroll the heading into the viewport.
+## Extension einrichten
 
-![Table of Contents Sample](./docs/TOCSample01.png)
+**Mit der App (Feature):** Beim Hinzufügen der App zur Website hängt `sharepoint/assets/elements.xml` den
+Customizer ein (`skipFeatureDeployment: false`).
 
-## Used SharePoint Framework Version
+**Per PnP PowerShell** (z. B. andere Eigenschaften je Website):
 
-![version](https://img.shields.io/badge/SPFx_version-1.18.0-green.svg)
-![version](https://img.shields.io/badge/NODE_version-18.17.1-blue.svg)
+```powershell
+Add-PnPCustomAction -Name "AnchorService" -Title "AnchorService" `
+  -Location "ClientSideExtension.ApplicationCustomizer" `
+  -ClientSideComponentId "38464b1c-f030-48cd-93ca-7b1be4f645d1" `
+  -ClientSideComponentProperties '{"headingLevels":[2,3,4],"showAnchorIcons":true,"convertInlineAnchors":true,"scrollToHashOnLoad":true}'
+```
 
-## Version history
+| Eigenschaft | Standard | Bedeutung |
+|---|---|---|
+| `headingLevels` | `[1,2,3,4,5]` | Verankerte Ebenen (Array oder Text `"2,3,4"`) |
+| `showAnchorIcons` | `true` | Link-Symbol neben Überschriften |
+| `convertInlineAnchors` | `true` | `{anchor-#id}` (auch `{Anker-#…}`, `{ANCHOR-#…}`) in Absätzen → unsichtbares Sprungziel |
+| `scrollToHashOnLoad` | `true` | Beim Laden/Seitenwechsel zum `#hash` springen |
+| `contentSelector` | leer | CSS-Selektor des Inhaltsbereichs, leer = automatisch |
 
-| Version | Date             | Comments        |
-| ------- | ---------------- | --------------- |
-| 1.0     | September, 2024  | Initial release |
+Debuggen: `gulp serve --config anchorService` (siehe `config/serve.json`, `pageUrl` anpassen).
 
-## Features
+## Inline-Anker `{anchor-#id}`
 
-This web part has several features that can be set in the web part configuration page. Note that **web part title** and **web part description** can be directly managed within the web part itself. If no title and/or description is provided, these sections will be empty and will not take up any space.
+Inline-Anker sind vollwertige Anker des AnchorService (`kind: 'inline'` in der Ankerliste):
 
-### Choose content area(s)
+- **Überall im Inhalt:** Absätze, Listen, Tabellen, auch in Überschriften (TreeWalker über den Inhaltsbereich,
+  kein eigener `p`-Selektor mehr). Ausgenommen: `<pre>`, `<code>`, Formularfelder, Skripte.
+- **Feste ID:** Die ID bleibt exakt wie geschrieben (z. B. `Wichtig_1`) und wird **vor** den Überschriften reserviert.
+  Heißt eine Überschrift gleich, weicht die Überschrift aus (`einleitung-1`) – Links auf den Marker brechen nie.
+  Doppelte Marker: der zweite bekommt ein Suffix (`Doppelt-1`).
+- **Eine Logik für alles:** `collectAnchorCandidates` (sammeln) und `assignAnchorIds` (IDs vergeben) werden von der
+  Extension (Ansicht) und von der Vorhersage (`getAvailableAnchors` / `usePredictedAnchors`: Vorschau und Dropdown im
+  Bearbeitungsmodus) gemeinsam genutzt – vorhergesagte und echte IDs sind dadurch identisch.
+- Scrollen zu Inline-Ankern läuft über den Service (`anchorServiceManager.scrollTo('Wichtig_1')`).
 
-![Settings - Content Areas](./docs/TOCSetContentAreas.png)
+## Bearbeitungsmodus
 
-When you open the configuration panel, you see a dropdown list containing all section(s) of your page. You can select multiple sections for your table of contents. Use the option *Show selected area(s)* to mark the selected section(s) on your page that will be used.
+Eine Extension kennt keinen `displayMode`. Erkannt wird Bearbeiten über:
+1. das Inhaltsverzeichnis-Webpart meldet seinen `displayMode` (`anchorEngine.reportEditMode`),
+2. `?Mode=Edit` in der URL,
+3. einen bearbeitbaren Editor (`contenteditable`) im Canvas,
+4. Bearbeitungs-Klassen des Canvas.
 
-### Levels to show
+Im Bearbeitungsmodus werden Icons/Wrapper entfernt und `{anchor-#…}`-Marker wiederhergestellt.
+**Schutz:** Elemente in einem `contenteditable`-Bereich werden nie verändert – auch nicht, falls der Modus zu spät erkannt wird.
+`?Mode=Edit` gilt nicht als Seitenwechsel.
 
-![Settings - Content Areas](./docs/TOCSetLevels.png)
+## Seitenwechsel
 
-You can choose the number of headings to display. Note that you cannot use *Heading 1* from the dropdown menu in a text web part. Even if you start typing # there is no heading 1 created, it will always reset to heading 2.
+Die Extension bleibt bei der clientseitigen Navigation bestehen. Erkennung über `application.navigatedEvent`,
+`popstate` und eine URL-Prüfung bei DOM-Änderungen. Dann: alte Seite aufräumen → `anchorServiceManager.reset()` →
+neue Seite verankern → Hash der neuen URL anspringen. Ein neu gerenderter Canvas (z. B. nach Veröffentlichen)
+wird ebenfalls erkannt.
 
-### Pin web part on scroll
+## Inhaltsverzeichnis
 
-![Settings - Content Areas](./docs/TOCSetPin.png)
+- Quelle „Überschriften der Seite“: angezeigt werden die im Webpart gewählten Ebenen, **soweit die Extension sie verankert**
+  (der Eigenschaftenbereich zeigt die verankerten Ebenen an). Im Bearbeitungsmodus zeigt die Vorschau bereits die echten Ziel-IDs.
+- Quelle „Eigene Links“: `PropertyFieldCollectionData` mit Titel (`LinkDropdown`), URL und Ebene. Das Dropdown sagt die
+  IDs mit der Konfiguration der Extension voraus (gleiche Ebenen, Filter, Inhaltsbereich; Inline-Anker nur wenn umgewandelt).
+- Filter: `<aside>`, `data-toc-ignore`, `display: none`, Site-Header-Titel, außerhalb `#spPageChromeAppDiv`.
+- Ist die Extension nicht aktiv, zeigt das Webpart im Bearbeitungsmodus einen Hinweis.
 
-When selected (default value is `true`), the web part will pin itself underneath the main navigation bar on the page. Note that when you have web parts below the table of contents web parts, these web parts will scroll underneath the table of contents web part.
+### Validierung eigener Links (`src/anchors/linkValidation.ts`)
 
-### Expand/Collapse header
+Grundsatz: Alles, was auf einer Seite als Sprungmarke entstehen kann, ist gültig.
 
-![Settings - Content Areas](./docs/TOCSetHeader.png)
+| Feld | Gültig | Abgelehnt |
+|---|---|---|
+| Titel | 1–255 Zeichen, jedes druckbare Zeichen (é è ê œ « » „ “ – € 中文 🚀 …) | leer, > 255, Steuerzeichen |
+| URL | `#id` roh oder kodiert (`#été-–-résumé`, `#a.1-grundlagen`, `#Wichtig_1`), relative/serverrelative Adressen (auch mit Leerzeichen), `//host`, `http(s):`, `mailto:`, `tel:` | leer, > 2048, `< > " \``, Steuerzeichen, `javascript:`/`data:`/`vbscript:`/`file:` …, leeres `#`, Anker mit Leerzeichen oder `# { } \| \ ^`, kaputte %-Kodierung |
 
-When using a web part title, this option will allow the end user to collapse or expand the header and thus the entire table of contents. Especially useful when using the Table of Contents web part in the main section. The default value is `false`.
+## Sprachen
 
-When using a collapsible header, this option allows you to collapse the header by default. This option is only allowed when the option `Expand/Collapse header` is `true`, otherwise this option will be disabled and disregarded.
+Deutsch, Englisch, Französisch (Webpart, Extension, Manifest).
 
-## Things to know
+## Bibliothek `src/anchors`
 
-- When you change your page layout by adding or removing section(s), make sure that the correct section is selected for generating the table of contents. It will not automatically update the section when moving section to another place.
-- Whenever you have a background color in your section where the table of contents web part resides, the font color will be adjusted according to the theme settings.
-- The table of contents web part will work in section(s) you can collapse/expand; **however** the table of contents is only generated when the section is initially expanded. When collapsed, the elements in the collapsed are not visible and we cannot generate a table of contents of hidden elements.
+| Datei | Inhalt |
+|---|---|
+| `AnchorServiceManager.ts` | `anchorServiceManager` (inkl. `reset()`), `AnchorService`, `allocateAnchorId` |
+| `PageAnchors.tsx` | Engine-Komponente (ohne Anzeige), von der Extension gehostet |
+| `anchorEngine.ts` | Konfiguration der Extension, Bearbeitungsmodus-Erkennung, `useAnchorEngine` |
+| `pageNavigation.ts` | Seitenwechsel-Hub, `navigatedEvent`, Zonenbesitz |
+| `globalRegistry.ts` | seitenweite Singletons über Bundle-Grenzen |
+| `AnchorZone.tsx` / `HiddenAnchorZone.tsx` | Sprungmarken für Überschriften / eingeklappte Bereiche |
+| `anchorIds.ts` | ID-Vergabe: `sanitizeAnchorId`, Kollisionen, `assignAnchorIds` (feste Inline-IDs zuerst) |
+| `anchorCollector.ts` | `collectAnchorCandidates`: Überschriften + Inline-Anker in Dokumentreihenfolge |
+| `inlineAnchors.ts` | `MARKER_REGEX`, `getQuerySelector`, `getInlineAnchorsElements`, `convertInlineAnchors`, `revertInlineAnchors`, `stripInlineMarkers` |
+| `anchorCatalog.ts` | Sprungmarken der Seite vorhersagen (Dropdown) |
+| `linkValidation.ts` | Validierung von Titel und URL |
+| `elementFilters.ts`, `contentRoot.ts` | Filter, Inhaltsbereich |
+| `hooks.ts` | `useSortedAnchors` (Ansicht), `usePredictedAnchors` (Bearbeiten), `usePageVersion`, `useDomChanges` |
+| `anchorStyles.ts`, `pageTheme.ts` | Styles (`mergeStyleSets`), Seiten-Theme |
 
-## Disclaimer
+## Build
 
-**THIS CODE IS PROVIDED _AS IS_ WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.**
+```bash
+npm install
+gulp bundle --ship && gulp package-solution --ship   # -> sharepoint/solution/spfx-anchor-links.sppkg
+```
 
----
-
-## Minimal Path to Awesome - Users
-
-To add the **Table of Contents** web part to your tenant, you need to be at least SharePoint Administrator and have access to the SharePoint App Center. To add the web part to your site, you need to be at least Site Owner.
-
-- Download the **table-of-contents.sppkg** from **sharepoint/Solution - PRD 1.0** or [click here to download](./sharepoint/Solution%20-%20PRD%201.0/table-of-contents.sppkg)
-- Open the SharePoint app center
-- Add the **table-of-contents.sppkg** package to the app center and follow the instructions on screen
-- Open your site
-- Choose **New** > **App** from the homepage of your site
-- Add the **Table of Contents** web part
-- Open an existing page or create a new page
-- Add the **Table of Contents** web part to your page and choose the correct content area to generate the table of contents for
-
-## Minimal Path to Awesome - Developers
-
-- Clone this repository
-- Ensure that you are at the solution folder
-- in the command-line run:
-  - **npm install**
-  - **gulp serve**
-
-> **TIP**: I'm using [SPFx Fast Serve Tool from Sergei Sergeev](https://github.com/s-KaiNet/spfx-fast-serve) instead of `gulp`. Great tool that really speeds up development. I strongly recommend using this tool when developing SPFx web part or extensions.
-
-## References
-
-- [SharePoint Framework](https://aka.ms/spfx)
-- [Microsoft 365 tenant](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/set-up-your-developer-tenant)
-- [Getting started with SharePoint Framework](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/set-up-your-developer-tenant)
-- [Building for Microsoft teams](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/build-for-teams-overview)
-- [Use Microsoft Graph in your solution](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/web-parts/get-started/using-microsoft-graph-apis)
-- [Publish SharePoint Framework applications to the Marketplace](https://docs.microsoft.com/en-us/sharepoint/dev/spfx/publish-to-marketplace-overview)
-- [Microsoft 365 Patterns and Practices](https://aka.ms/m365pnp) - Guidance, tooling, samples and open-source controls for your Microsoft 365 development
+Geprüft mit TypeScript 4.9 gegen React 16.14, `@fluentui/react` 8, `@pnp/spfx-property-controls` 3 und den
+SPFx-1.4.1-Paketen. Versionen in `package.json` an euer Projekt angleichen.
