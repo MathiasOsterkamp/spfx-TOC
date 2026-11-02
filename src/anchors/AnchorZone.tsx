@@ -1,7 +1,8 @@
 import * as React from 'react';
+import { ITheme } from '@fluentui/react/lib/Styling';
 import { IAnchorData } from './IAnchor';
 import { anchorServiceManager } from './AnchorServiceManager';
-import { INLINE_LINK_STATIC_CLASS } from './anchorStyles';
+import { ANCHOR_STATIC_CLASS, INLINE_LINK_STATIC_CLASS } from './anchorStyles';
 import { ANCHOR_ATTR, ANCHOR_TARGET_ATTR, applyPermalink, cls, createLinkGlyph, isRTL, toArray } from './anchorUtils';
 import { IAnchorCandidate, collectAnchorCandidates } from './anchorCollector';
 
@@ -28,6 +29,8 @@ export interface IAnchorZoneProps {
   includeInline?: boolean;
   /** Changing this value triggers a rescan (e.g. when the content has changed). */
   refreshKey?: number | string;
+  /** Theme for the icon colors (default: page theme). */
+  theme?: ITheme;
   children?: React.ReactNode;
 }
 
@@ -36,21 +39,21 @@ export interface IAnchorZoneProps {
  * (Class component, as in the SharePoint original.)
  */
 export class AnchorZone extends React.Component<IAnchorZoneProps> {
-  private static _anchorIconElementCache: HTMLAnchorElement | undefined;
+  private _anchorIconElementCache: HTMLAnchorElement | undefined;
   private _wrapperElementRef: React.RefObject<HTMLDivElement> = React.createRef<HTMLDivElement>();
 
-  private static _createAnchorIconElement(): HTMLAnchorElement {
-    if (!AnchorZone._anchorIconElementCache) {
-      const link: HTMLAnchorElement = document.createElement('a');
-      link.className = `${cls().anchor} ${cls().inline}`;
-      link.appendChild(createLinkGlyph());
-      AnchorZone._anchorIconElementCache = link;
-    }
-    return AnchorZone._anchorIconElementCache.cloneNode(true) as HTMLAnchorElement;
+  private static _isElementAnchorIcon(element: Element): boolean {
+    return element.hasAttribute(ANCHOR_ATTR) && element.classList.contains(ANCHOR_STATIC_CLASS);
   }
 
-  private static _isElementAnchorIcon(element: Element): boolean {
-    return element.hasAttribute(ANCHOR_ATTR) && element.classList.contains(cls().anchor);
+  private _createAnchorIconElement(): HTMLAnchorElement {
+    if (!this._anchorIconElementCache) {
+      const link: HTMLAnchorElement = document.createElement('a');
+      link.className = `${cls(this.props.theme).anchor} ${cls(this.props.theme).inline} ${ANCHOR_STATIC_CLASS}`;
+      link.appendChild(createLinkGlyph(this.props.theme));
+      this._anchorIconElementCache = link;
+    }
+    return this._anchorIconElementCache.cloneNode(true) as HTMLAnchorElement;
   }
 
   public componentDidMount(): void {
@@ -58,6 +61,9 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
   }
 
   public componentDidUpdate(prevProps: IAnchorZoneProps): void {
+    if (prevProps.theme !== this.props.theme) {
+      this._anchorIconElementCache = undefined;
+    }
     // Only re-register on relevant changes (otherwise an endless loop with onAnchorsUpdated)
     if (
       prevProps.anchorElementSelector !== this.props.anchorElementSelector ||
@@ -65,6 +71,7 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
       prevProps.hideAnchorIcon !== this.props.hideAnchorIcon ||
       prevProps.includeInline !== this.props.includeInline ||
       prevProps.refreshKey !== this.props.refreshKey ||
+      prevProps.theme !== this.props.theme ||
       prevProps.children !== this.props.children
     ) {
       this._registerAnchors(true);
@@ -80,7 +87,7 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
       return null;
     }
     return (
-      <div className={cls().wrapper} ref={this._wrapperElementRef}>
+      <div className={cls(this.props.theme).wrapper} ref={this._wrapperElementRef}>
         {this.props.children}
       </div>
     );
@@ -158,8 +165,8 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     if (existing) {
       return existing as HTMLElement;
     }
-    const link: HTMLAnchorElement = AnchorZone._createAnchorIconElement();
-    link.className = `${link.className} ${cls().inlineLink} ${INLINE_LINK_STATIC_CLASS}`;
+    const link: HTMLAnchorElement = this._createAnchorIconElement();
+    link.className = `${link.className} ${cls(this.props.theme).inlineLink} ${INLINE_LINK_STATIC_CLASS}`;
     // Non-breaking space: gives the otherwise empty target a hoverable area
     target.appendChild(document.createTextNode('\u00A0'));
     target.appendChild(link);
@@ -172,7 +179,7 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
       return next as HTMLElement;
     }
 
-    const link: HTMLAnchorElement = AnchorZone._createAnchorIconElement();
+    const link: HTMLAnchorElement = this._createAnchorIconElement();
 
     // Wrap heading + icon so that :hover covers both
     const wrapper: HTMLDivElement = document.createElement('div');
@@ -181,10 +188,10 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     }
     wrapper.appendChild(target);
     wrapper.appendChild(link);
-    wrapper.className = `anchor-${target.tagName.toLowerCase()} ${cls().headingWrapper}`;
+    wrapper.className = `anchor-${target.tagName.toLowerCase()} ${cls(this.props.theme).headingWrapper}`;
 
     const placeholder: HTMLSpanElement = document.createElement('span');
-    placeholder.className = cls().anchor;
+    placeholder.className = `${cls(this.props.theme).anchor} ${ANCHOR_STATIC_CLASS}`;
     // In text flow (not absolute) so its rect reflects the line box at the end of the text
     placeholder.style.position = 'static';
     this._insertPlaceholder(placeholder, target);

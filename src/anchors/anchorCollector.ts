@@ -35,8 +35,6 @@ export interface ICollectAnchorsOptions {
   includeInline: boolean;
   /** Also include markers still present as text (edit mode / prediction). */
   includeUnconvertedMarkers?: boolean;
-  /** Additional heading-like elements outside the root (e.g. the page title field). */
-  extraElements?: HTMLElement[];
 }
 
 /** Heading text as shown in view mode (markers are already removed there). */
@@ -44,6 +42,19 @@ export function getHeadingText(element: HTMLElement): string {
   // The page title in edit mode is a textarea: the current text is its value, not its textContent
   const raw: string = element.tagName === 'TEXTAREA' ? (element as HTMLTextAreaElement).value : element.textContent || '';
   return stripInlineMarkers(raw).trim();
+}
+
+/**
+ * The page title (level 1) lives in the page header, outside the content canvas:
+ * in view mode as an element with role="heading" aria-level="1", in edit mode as a textarea.
+ */
+function findPageTitleElements(root: HTMLElement, headingSelector: string): HTMLElement[] {
+  try {
+    return toArray<HTMLElement>(document.querySelectorAll(headingSelector) as any)
+      .filter((el: HTMLElement) => !root.contains(el) && getHeadingLevel(el) === 1);
+  } catch (e) {
+    return [];
+  }
 }
 
 /**
@@ -61,11 +72,7 @@ export function collectAnchorCandidates(root: HTMLElement, options: ICollectAnch
     } catch (e) {
       headings = [];
     }
-    (options.extraElements || []).forEach((extra: HTMLElement) => {
-      if (headings.indexOf(extra) < 0) {
-        headings.push(extra);
-      }
-    });
+    findPageTitleElements(root, options.headingSelector).forEach((title: HTMLElement) => headings.push(title));
     headings.filter(keep).forEach((el: HTMLElement) => {
       items.push({
         node: el,

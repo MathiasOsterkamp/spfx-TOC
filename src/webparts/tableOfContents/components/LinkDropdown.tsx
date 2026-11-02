@@ -2,6 +2,7 @@ import * as React from 'react';
 import { ComboBox, IComboBox, IComboBoxOption } from '@fluentui/react/lib/ComboBox';
 import { SelectableOptionMenuItemType } from '@fluentui/react/lib/SelectableOption';
 import { Text as FluentText } from '@fluentui/react/lib/Text';
+import { ITheme } from '@fluentui/react/lib/Styling';
 import { Text } from '@microsoft/sp-core-library';
 import * as strings from 'TableOfContentsWebPartStrings';
 
@@ -30,6 +31,8 @@ export interface ILinkDropdownProps {
   item: any;
   onUpdate: (fieldId: string, value: any) => void;
   onCustomFieldValidation?: (fieldId: string, errorMessage: string) => void;
+  /** Theme for the colors (default: page theme). */
+  theme?: ITheme;
 }
 
 const HEADER_HEADINGS: string = 'header:headings';
@@ -58,7 +61,7 @@ function buildOptions(anchors: ISortedAnchor[], filterText: string): IComboBoxOp
 }
 
 export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownProps) => {
-  const { field, value, item, onUpdate, onCustomFieldValidation } = props;
+  const { field, value, item, onUpdate, onCustomFieldValidation, theme: themeProp } = props;
 
   // All anchors of the page (the master list) – updates on changes in the editor
   const { anchors, loaded } = usePredictedAnchors(true);
@@ -70,7 +73,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
   const [currentText, setCurrentText] = React.useState<string>(value || '');
   const [touched, setTouched] = React.useState<boolean>(false);
 
-  const theme = React.useMemo(() => getPageTheme(), []);
+  const theme: ITheme = React.useMemo(() => themeProp || getPageTheme(), [themeProp]);
 
   React.useEffect(() => {
     setCurrentText(value || '');

@@ -15,6 +15,9 @@ export const GLYPH_STATIC_CLASS: string = 'spfxAnchor-glyph';
 /** Static class on the inline anchor link so the parent can show it on hover/focus. */
 export const INLINE_LINK_STATIC_CLASS: string = 'spfxAnchor-inlineLink';
 
+/** Theme independent marker on icons and placeholders (the generated class names differ per theme). */
+export const ANCHOR_STATIC_CLASS: string = 'spfxAnchor-icon';
+
 export interface IAnchorClassNames {
   wrapper: string;
   headingWrapper: string;
@@ -26,14 +29,18 @@ export interface IAnchorClassNames {
   inlineLink: string;
 }
 
-/** Page-wide identical class names so cleanup also works across bundles. */
-const holder: { cache?: IAnchorClassNames } = getGlobal('anchorClassNames.v3', () => ({}));
+/** Page-wide class sets per theme so cleanup also works across bundles. */
+const holder: { cache: { [themeKey: string]: IAnchorClassNames } } =
+  getGlobal('anchorClassNames.v4', () => ({ cache: {} }));
 
+/** Class names for the given theme (default: page theme). Created once per set of theme colors used. */
 export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
-  if (holder.cache) {
-    return holder.cache;
-  }
   const t: ITheme = theme || getPageTheme();
+  const focusBorder: string = t.semanticColors.focusBorder || t.palette.neutralSecondary;
+  const key: string = `${t.palette.themePrimary}|${focusBorder}`;
+  if (holder.cache[key]) {
+    return holder.cache[key];
+  }
   const visible: { opacity: number; transition: string } = { opacity: 1, transition: 'opacity .1s linear' };
 
   const created: IAnchorClassNames = mergeStyleSets({
@@ -61,7 +68,7 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
         ':focus > &': visible,
         ':hover > &': visible,
         [`:focus:not(:active) .${GLYPH_STATIC_CLASS}`]: {
-          borderColor: t.semanticColors.focusBorder || t.palette.neutralSecondary
+          borderColor: focusBorder
         }
       }
     },
@@ -97,6 +104,6 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
     }
   }) as IAnchorClassNames;
 
-  holder.cache = created;
+  holder.cache[key] = created;
   return created;
 }

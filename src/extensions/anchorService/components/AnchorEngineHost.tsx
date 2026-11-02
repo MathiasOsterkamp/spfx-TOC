@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { DisplayMode } from '@microsoft/sp-core-library';
+import { ITheme } from '@fluentui/react/lib/Styling';
 import {
   IAnchorEngineConfig,
   PageAnchors,
@@ -14,6 +15,8 @@ import {
 export interface IAnchorEngineHostProps {
   instanceId: string;
   config: IAnchorEngineConfig;
+  /** Theme for the anchor icons (default: page theme). */
+  theme?: ITheme;
 }
 
 /**
@@ -24,7 +27,7 @@ export interface IAnchorEngineHostProps {
  * In addition, the engine never modifies elements inside a contenteditable area.
  */
 export const AnchorEngineHost: React.FC<IAnchorEngineHostProps> = (props: IAnchorEngineHostProps) => {
-  const { instanceId, config } = props;
+  const { instanceId, config, theme } = props;
 
   const [isEdit, setIsEdit] = React.useState<boolean>(() => isPageInEditMode(config.contentSelector));
 
@@ -55,6 +58,7 @@ export const AnchorEngineHost: React.FC<IAnchorEngineHostProps> = (props: IAncho
       convertInlineAnchors={config.convertInlineAnchors}
       showAnchorIcons={config.showAnchorIcons}
       scrollToHashOnLoad={config.scrollToHashOnLoad}
-      additionalFilter={defaultTocFilter} />
+      additionalFilter={defaultTocFilter}
+      theme={theme} />
   );
 };

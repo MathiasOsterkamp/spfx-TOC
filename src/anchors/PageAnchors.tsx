@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { DisplayMode } from '@microsoft/sp-core-library';
+import { ITheme } from '@fluentui/react/lib/Styling';
 
 import { ISortedAnchor, IScrollTask } from './IAnchor';
 import { anchorServiceManager } from './AnchorServiceManager';
@@ -28,6 +29,8 @@ export interface IPageAnchorsProps {
   scrollToHashOnLoad: boolean;
   /** Additional filter for headings (true = anchor). */
   additionalFilter?: (element: HTMLElement) => boolean;
+  /** Theme for the anchor icons (default: page theme). */
+  theme?: ITheme;
 }
 
 interface IPageAnchorsState {
@@ -92,7 +95,8 @@ export class PageAnchors extends React.Component<IPageAnchorsProps, IPageAnchors
       prevProps.headingSelector !== p.headingSelector ||
       prevProps.contentSelector !== p.contentSelector ||
       prevProps.convertInlineAnchors !== p.convertInlineAnchors ||
-      prevProps.showAnchorIcons !== p.showAnchorIcons)) {
+      prevProps.showAnchorIcons !== p.showAnchorIcons ||
+      prevProps.theme !== p.theme)) {
       this._reactivate();
     }
   }
@@ -110,16 +114,17 @@ export class PageAnchors extends React.Component<IPageAnchorsProps, IPageAnchors
   }
 
   public render(): JSX.Element {
-    const { headingSelector, showAnchorIcons, convertInlineAnchors: includeInline, instanceId } = this.props;
+    const { headingSelector, showAnchorIcons, convertInlineAnchors: includeInline, instanceId, theme } = this.props;
     const { root, ownsZone, scanVersion } = this.state;
     const attrs: { [key: string]: string } = { [EXCLUDE_ATTR]: 'true' };
 
     return (
-      <div className={cls().hidden} aria-hidden='true' {...attrs}>
+      <div className={cls(theme).hidden} aria-hidden='true' {...attrs}>
         {this._isDisplay(this.props) && ownsZone && root && (headingSelector || includeInline)
           ? <AnchorZone
             key={showAnchorIcons ? 'icons' : 'noicons'}
             componentId={instanceId}
+            theme={theme}
             anchorElementSelector={headingSelector}
             elementForSearch={root}
             filterElement={this._filterElement}

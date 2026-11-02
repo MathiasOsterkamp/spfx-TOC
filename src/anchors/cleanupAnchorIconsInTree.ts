@@ -1,4 +1,4 @@
-import { ANCHOR_ATTR, ANCHOR_TARGET_ATTR, cls, removeNode, toArray } from './anchorUtils';
+import { ANCHOR_ATTR, ANCHOR_STATIC_CLASS, ANCHOR_TARGET_ATTR, removeNode, toArray } from './anchorUtils';
 import { INLINE_ANCHOR_ATTR } from './inlineAnchors';
 
 /**
@@ -7,7 +7,7 @@ import { INLINE_ANCHOR_ATTR } from './inlineAnchors';
  * The IDs on the headings are kept.
  */
 export function cleanupAnchorIconsInTree(root: HTMLElement): void {
-  const anchorClass: string = cls().anchor;
+  const anchorClass: string = ANCHOR_STATIC_CLASS;
   const links: HTMLElement[] = toArray<HTMLElement>(root.querySelectorAll(`a[${ANCHOR_ATTR}]`) as any);
   links.forEach((link: HTMLElement) => {
     const wrapper: HTMLElement | null = link.parentElement;

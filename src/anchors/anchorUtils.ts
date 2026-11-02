@@ -1,5 +1,6 @@
 import { Log, Text } from '@microsoft/sp-core-library';
-import { GLYPH_STATIC_CLASS, IAnchorClassNames, getAnchorClassNames } from './anchorStyles';
+import { ANCHOR_STATIC_CLASS, GLYPH_STATIC_CLASS, IAnchorClassNames, getAnchorClassNames } from './anchorStyles';
+import { ITheme } from '@fluentui/react/lib/Styling';
 
 export const LOG_SOURCE: string = 'AnchorService';
 
@@ -17,10 +18,12 @@ export const EXCLUDE_ATTR: string = 'data-spfx-anchor-exclude';
 
 export const HEADING_TAGS: string[] = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6'];
 
-/** CSS classes of the anchors (mergeStyleSets, created once). */
-export function cls(): IAnchorClassNames {
-  return getAnchorClassNames();
+/** CSS classes of the anchors (mergeStyleSets, created once per theme; default: page theme). */
+export function cls(theme?: ITheme): IAnchorClassNames {
+  return getAnchorClassNames(theme);
 }
+
+export { ANCHOR_STATIC_CLASS };
 
 /** Texts the components can override from their localization files. */
 export const anchorStrings: { permalinkFormat: string } = {
@@ -91,9 +94,9 @@ export function applyPermalink(
 const SVG_NS: string = 'http://www.w3.org/2000/svg';
 
 /** Link glyph as inline SVG (no dependency on the icon font). */
-export function createLinkGlyph(): HTMLElement {
+export function createLinkGlyph(theme?: ITheme): HTMLElement {
   const glyph: HTMLElement = document.createElement('span');
-  glyph.className = `${cls().glyph} ${GLYPH_STATIC_CLASS}`;
+  glyph.className = `${cls(theme).glyph} ${GLYPH_STATIC_CLASS}`;
   glyph.setAttribute('aria-hidden', 'true');
 
   const svg: Element = document.createElementNS(SVG_NS, 'svg');
