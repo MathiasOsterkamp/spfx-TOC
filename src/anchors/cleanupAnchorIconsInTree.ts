@@ -1,4 +1,5 @@
 import { ANCHOR_ATTR, ANCHOR_TARGET_ATTR, cls, removeNode, toArray } from './anchorUtils';
+import { INLINE_ANCHOR_ATTR } from './inlineAnchors';
 
 /**
  * Removes permalink icons, placeholders and wrappers from a DOM tree again
@@ -11,7 +12,8 @@ export function cleanupAnchorIconsInTree(root: HTMLElement): void {
   links.forEach((link: HTMLElement) => {
     const wrapper: HTMLElement | null = link.parentElement;
     removeNode(link);
-    if (!wrapper) {
+    if (!wrapper || wrapper.hasAttribute(INLINE_ANCHOR_ATTR)) {
+      // Inline target: only the icon is removed, the target itself stays
       return;
     }
     const heading: Element | null = wrapper.firstElementChild;

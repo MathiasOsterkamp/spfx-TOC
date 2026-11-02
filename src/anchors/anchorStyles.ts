@@ -12,17 +12,22 @@ import { getGlobal } from './globalRegistry';
 /** Static class on the glyph so the focus border can be targeted by a selector. */
 export const GLYPH_STATIC_CLASS: string = 'spfxAnchor-glyph';
 
+/** Static class on the inline anchor link so the parent can show it on hover/focus. */
+export const INLINE_LINK_STATIC_CLASS: string = 'spfxAnchor-inlineLink';
+
 export interface IAnchorClassNames {
   wrapper: string;
+  headingWrapper: string;
   anchor: string;
   inline: string;
   glyph: string;
   hidden: string;
   inlineAnchor: string;
+  inlineLink: string;
 }
 
 /** Page-wide identical class names so cleanup also works across bundles. */
-const holder: { cache?: IAnchorClassNames } = getGlobal('anchorClassNames', () => ({}));
+const holder: { cache?: IAnchorClassNames } = getGlobal('anchorClassNames.v3', () => ({}));
 
 export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
   if (holder.cache) {
@@ -35,10 +40,20 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
     wrapper: {
       display: 'contents'
     },
+    // Wraps heading + icon: positioning context for the absolute icon and hover area
+    headingWrapper: {
+      position: 'relative',
+      selectors: {
+        ':hover > a[data-spfx-anchor-id]': visible
+      }
+    },
     anchor: {
       opacity: 0,
       outline: 'none',
       position: 'absolute',
+      zIndex: 1,
+      whiteSpace: 'nowrap',
+      cursor: 'pointer',
       textDecoration: 'none',
       color: t.palette.themePrimary,
       selectors: {
@@ -68,10 +83,17 @@ export function getAnchorClassNames(theme?: ITheme): IAnchorClassNames {
     hidden: {
       height: 0
     },
-    // Invisible target created from an {anchor-#id} marker
+    // Target created from an {anchor-#id} marker, contains a link icon that is shown on hover/focus
     inlineAnchor: {
       display: 'inline',
-      fontSize: 0
+      selectors: {
+        [`:hover > & .${INLINE_LINK_STATIC_CLASS}`]: visible,
+        [`:focus-within .${INLINE_LINK_STATIC_CLASS}`]: visible
+      }
+    },
+    // Modifier for the shared anchor icon inside an inline target: in text flow instead of absolute
+    inlineLink: {
+      position: 'static'
     }
   }) as IAnchorClassNames;
 

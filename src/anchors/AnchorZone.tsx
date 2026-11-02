@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { IAnchorData } from './IAnchor';
 import { anchorServiceManager } from './AnchorServiceManager';
+import { INLINE_LINK_STATIC_CLASS } from './anchorStyles';
 import { ANCHOR_ATTR, ANCHOR_TARGET_ATTR, applyPermalink, cls, createLinkGlyph, isRTL, toArray } from './anchorUtils';
 import { IAnchorCandidate, collectAnchorCandidates } from './anchorCollector';
 
@@ -111,10 +112,8 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
           kind: 'inline',
           preserveId: true,
           level: 0,
-          onReceiveAnchorId: (target: HTMLElement, anchorId: string) => {
-            target.setAttribute('id', anchorId);
-            target.setAttribute(ANCHOR_TARGET_ATTR, anchorId);
-          }
+          onReceiveAnchorId: (target: HTMLElement, anchorId: string) =>
+            this._addAnchorIcon(target, anchorId, anchorId, true)
         });
         return;
       }
@@ -139,18 +138,30 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     });
   }
 
-  private _addAnchorIcon(target: HTMLElement, anchorId: string, label: string): void {
+  private _addAnchorIcon(target: HTMLElement, anchorId: string, label: string, inline: boolean = false): void {
     target.setAttribute(ANCHOR_TARGET_ATTR, anchorId);
     if (this.props.hideAnchorIcon) {
       target.setAttribute('id', anchorId);
       return;
     }
-    const link: HTMLElement = this._insertAnchorIcon(target);
+    const link: HTMLElement = inline ? this._insertInlineIcon(target) : this._insertAnchorIcon(target);
     try {
       applyPermalink(target, link, anchorId, label, true);
     } catch (e) {
       // intentionally ignored (as in the original)
     }
+  }
+
+  /** Placement for inline targets: the icon sits in the text flow inside the target span. */
+  private _insertInlineIcon(target: HTMLElement): HTMLElement {
+    const existing: Element | null = target.querySelector(`a[${ANCHOR_ATTR}]`);
+    if (existing) {
+      return existing as HTMLElement;
+    }
+    const link: HTMLAnchorElement = AnchorZone._createAnchorIconElement();
+    link.className = `${link.className} ${cls().inlineLink} ${INLINE_LINK_STATIC_CLASS}`;
+    target.appendChild(link);
+    return link;
   }
 
   private _insertAnchorIcon(target: HTMLElement): HTMLElement {
@@ -168,7 +179,7 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
     }
     wrapper.appendChild(target);
     wrapper.appendChild(link);
-    wrapper.className = `anchor-${target.tagName.toLowerCase()}`;
+    wrapper.className = `anchor-${target.tagName.toLowerCase()} ${cls().headingWrapper}`;
 
     const offset: number = (parseInt(getComputedStyle(target).lineHeight || '0', 10) - link.offsetHeight) / 2;
     const placeholder: HTMLSpanElement = document.createElement('span');
