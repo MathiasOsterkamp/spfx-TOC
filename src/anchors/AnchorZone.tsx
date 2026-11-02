@@ -146,6 +146,12 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
   }
 
   private _addAnchorIcon(target: HTMLElement, anchorId: string, label: string, inline: boolean = false): void {
+    const root: HTMLElement | null = this.props.elementForSearch || this._wrapperElementRef.current;
+    if (!inline && root && !root.contains(target)) {
+      // Page title etc. is rendered and removed by SharePoint (React): only the ID, never move/wrap the element
+      target.setAttribute('id', anchorId);
+      return;
+    }
     target.setAttribute(ANCHOR_TARGET_ATTR, anchorId);
     if (this.props.hideAnchorIcon) {
       target.setAttribute('id', anchorId);
