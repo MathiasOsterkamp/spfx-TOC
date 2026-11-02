@@ -38,6 +38,26 @@ export interface ILinkDropdownProps {
 const HEADER_HEADINGS: string = 'header:headings';
 const HEADER_INLINE: string = 'header:inline';
 
+/** One line, cut off with an ellipsis (the full text is in the title attribute). */
+const ellipsisStyle: React.CSSProperties = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap'
+};
+
+/** Hints wrap, break inside long words/IDs and are limited to two lines so they cannot squeeze the URL field. */
+const clampStyle: React.CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical'
+};
+
 function buildOptions(anchors: ISortedAnchor[], filterText: string): IComboBoxOption[] {
   const needle: string = (filterText || '').toLowerCase();
   const matches = (a: ISortedAnchor): boolean =>
@@ -119,7 +139,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
     !anchors.some((a: ISortedAnchor) => a.anchorId === samePageId);
 
   return (
-    <div>
+    <div style={{ minWidth: 0, maxWidth: '100%' }}>
       <ComboBox
         options={displayedOptions}
         disabled={isLoading}
@@ -133,33 +153,47 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
         onInputValueChange={handleInputValueChange}
         onMenuDismissed={() => setFilterText('')}
         onBlur={() => setTouched(true)}
-        styles={{ root: { minWidth: 220 }, optionsContainerWrapper: { maxHeight: 320 } }}
+        styles={{
+          root: { minWidth: 0, maxWidth: '100%' },
+          optionsContainerWrapper: { maxHeight: 320 },
+          // The menu follows the width of the field; long entries are cut off instead of widening it
+          callout: { maxWidth: 'min(480px, 90vw)' }
+        }}
         onRenderOption={(option?: IComboBoxOption) => {
           if (!option) {
             return null;
           }
           const anchor: ISortedAnchor | undefined = option.data;
           if (!anchor) {
-            return <span>{option.text}</span>;
+            return <span style={ellipsisStyle} title={option.text}>{option.text}</span>;
           }
+          const suffix: string = anchor.kind === 'heading' ? ` #${anchor.anchorId}` : '';
           return (
-            <span style={{ paddingLeft: anchor.kind === 'heading' ? Math.max(0, anchor.level - 1) * 10 : 0 }}>
+            <span
+              style={{
+                ...ellipsisStyle,
+                paddingLeft: anchor.kind === 'heading' ? Math.max(0, anchor.level - 1) * 10 : 0
+              }}
+              title={`${option.text}${suffix}`}>
               {option.text}
-              {anchor.kind === 'heading' &&
-                <span style={{ color: theme.semanticColors.bodySubtext, marginLeft: 6 }}>#{anchor.anchorId}</span>}
+              {suffix && <span style={{ color: theme.semanticColors.bodySubtext, marginLeft: 6 }}>{suffix.trim()}</span>}
             </span>
           );
         }}
       />
       {!isLoading && anchors.length === 0 &&
-        <FluentText variant='small' styles={{ root: { color: theme.semanticColors.bodySubtext } }}>
-          {strings.DropdownNoAnchors}
-        </FluentText>
+        <div style={clampStyle}>
+          <FluentText variant='small' styles={{ root: { color: theme.semanticColors.bodySubtext } }}>
+            {strings.DropdownNoAnchors}
+          </FluentText>
+        </div>
       }
       {anchorMissing &&
-        <FluentText variant='small' styles={{ root: { color: theme.semanticColors.warningText || theme.palette.orangeLighter } }}>
-          {Text.format(strings.WarningAnchorNotOnPage, samePageId as string)}
-        </FluentText>
+        <div style={clampStyle} title={Text.format(strings.WarningAnchorNotOnPage, samePageId as string)}>
+          <FluentText variant='small' styles={{ root: { color: theme.semanticColors.warningText || theme.palette.orangeLighter } }}>
+            {Text.format(strings.WarningAnchorNotOnPage, samePageId as string)}
+          </FluentText>
+        </div>
       }
     </div>
   );
