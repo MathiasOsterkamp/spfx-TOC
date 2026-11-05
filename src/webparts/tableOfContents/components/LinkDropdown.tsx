@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { ComboBox, IComboBox, IComboBoxOption } from '@fluentui/react/lib/ComboBox';
 import { SelectableOptionMenuItemType } from '@fluentui/react/lib/SelectableOption';
-import { Text as FluentText } from '@fluentui/react/lib/Text';
-import { ITheme } from '@fluentui/react/lib/Styling';
+import { Icon } from '@fluentui/react/lib/Icon';
+import { ITheme, hiddenContentStyle } from '@fluentui/react/lib/Styling';
+import { getId } from '@fluentui/react/lib/Utilities';
 import { Text } from '@microsoft/sp-core-library';
 import * as strings from 'TableOfContentsWebPartStrings';
 
@@ -46,17 +47,32 @@ const ellipsisStyle: React.CSSProperties = {
   whiteSpace: 'nowrap'
 };
 
-/** Hints wrap, break inside long words/IDs and are limited to two lines so they cannot squeeze the URL field. */
-const clampStyle: React.CSSProperties = {
-  minWidth: 0,
-  maxWidth: '100%',
+/**
+ * The collection panel is an auto-layout table: every text in a cell widens its column and every
+ * extra line makes the row taller. Messages are therefore never rendered as text below the field –
+ * they are shown as an icon in a slot of fixed width (tooltip + screen reader text), so title and URL
+ * keep their width and all rows keep the same height while validating.
+ * (The collection itself shows URL errors only in its error callout, never below the field.)
+ */
+const HINT_SLOT_WIDTH: number = 24;
+
+/** Read by screen readers only (same as hiddenContentStyle, as inline style). */
+const visuallyHiddenStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  border: 0,
   overflow: 'hidden',
-  overflowWrap: 'anywhere',
-  wordBreak: 'break-word',
-  display: '-webkit-box',
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: 'vertical'
+  whiteSpace: 'nowrap'
 };
+
+interface IFieldHint {
+  text: string;
+  iconName: string;
+  color: string;
+}
 
 function buildOptions(anchors: ISortedAnchor[], filterText: string): IComboBoxOption[] {
   const needle: string = (filterText || '').toLowerCase();
@@ -92,6 +108,10 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
     () => buildOptions(anchors, filterText), [anchors, filterText]);
   const [currentText, setCurrentText] = React.useState<string>(value || '');
   const [touched, setTouched] = React.useState<boolean>(false);
+  // Controlled selection, reset as soon as the text is edited. Otherwise the ComboBox ignores selecting
+  // the same anchor again (no onChange for an unchanged index) and the edited title is not restored.
+  const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
+  const hintId: string = React.useMemo(() => getId('linkDropdownHint'), []);
 
   const theme: ITheme = React.useMemo(() => themeProp || getPageTheme(), [themeProp]);
 
@@ -113,6 +133,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
     if (option && option.data) {
       const anchor: ISortedAnchor = option.data as ISortedAnchor;
       const title: string = cleanLinkTitle(anchor.anchorText) || anchor.anchorId;
+      setSelectedKey(option.key as string);
       setCurrentText(title);
       onUpdate(field.id, title);
       onUpdate('url', `#${anchor.anchorId}`);
@@ -122,6 +143,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
       setFilterText(''); // Resets the filter after selection
     } else {
       const text: string = valueStr !== undefined ? valueStr : currentText;
+      setSelectedKey(null);
       setCurrentText(text);
       onUpdate(field.id, text);
     }
@@ -129,6 +151,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
 
   // Filter while typing (contains search, also mid-word)
   const handleInputValueChange = (text: string): void => {
+    setSelectedKey(null);
     setCurrentText(text);
     setFilterText(text);
   };
@@ -138,63 +161,83 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
   const anchorMissing: boolean = !isLoading && !!samePageId &&
     !anchors.some((a: ISortedAnchor) => a.anchorId === samePageId);
 
+  // At most one hint per field, the most important one first
+  const showError: boolean = touched && !!errorMessage;
+  let hint: IFieldHint | undefined;
+  if (showError) {
+    hint = { text: errorMessage, iconName: 'Error', color: theme.semanticColors.errorText };
+  } else if (anchorMissing) {
+    hint = {
+      text: Text.format(strings.WarningAnchorNotOnPage, samePageId as string),
+      iconName: 'Warning',
+      color: theme.semanticColors.warningText || theme.palette.orangeLighter
+    };
+  } else if (!isLoading && anchors.length === 0) {
+    hint = { text: strings.DropdownNoAnchors, iconName: 'Info', color: theme.semanticColors.bodySubtext };
+  }
+
   return (
-    <div style={{ minWidth: 0, maxWidth: '100%' }}>
-      <ComboBox
-        options={displayedOptions}
-        disabled={isLoading}
-        placeholder={isLoading ? strings.DropdownLoading : strings.DropdownPlaceholder}
-        allowFreeform={true}
-        autoComplete='off'
-        text={currentText}
-        required={field.required}
-        errorMessage={touched && errorMessage ? errorMessage : undefined}
-        onChange={handleChange}
-        onInputValueChange={handleInputValueChange}
-        onMenuDismissed={() => setFilterText('')}
-        onBlur={() => setTouched(true)}
-        styles={{
-          root: { minWidth: 0, maxWidth: '100%' },
-          optionsContainerWrapper: { maxHeight: 320 },
-          // The menu follows the width of the field; long entries are cut off instead of widening it
-          callout: { maxWidth: 'min(480px, 90vw)' }
-        }}
-        onRenderOption={(option?: IComboBoxOption) => {
-          if (!option) {
-            return null;
-          }
-          const anchor: ISortedAnchor | undefined = option.data;
-          if (!anchor) {
-            return <span style={ellipsisStyle} title={option.text}>{option.text}</span>;
-          }
-          const suffix: string = anchor.kind === 'heading' ? ` #${anchor.anchorId}` : '';
-          return (
-            <span
-              style={{
-                ...ellipsisStyle,
-                paddingLeft: anchor.kind === 'heading' ? Math.max(0, anchor.level - 1) * 10 : 0
-              }}
-              title={`${option.text}${suffix}`}>
-              {option.text}
-              {suffix && <span style={{ color: theme.semanticColors.bodySubtext, marginLeft: 6 }}>{suffix.trim()}</span>}
-            </span>
-          );
-        }}
-      />
-      {!isLoading && anchors.length === 0 &&
-        <div style={clampStyle}>
-          <FluentText variant='small' styles={{ root: { color: theme.semanticColors.bodySubtext } }}>
-            {strings.DropdownNoAnchors}
-          </FluentText>
-        </div>
-      }
-      {anchorMissing &&
-        <div style={clampStyle} title={Text.format(strings.WarningAnchorNotOnPage, samePageId as string)}>
-          <FluentText variant='small' styles={{ root: { color: theme.semanticColors.warningText || theme.palette.orangeLighter } }}>
-            {Text.format(strings.WarningAnchorNotOnPage, samePageId as string)}
-          </FluentText>
-        </div>
-      }
+    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: '100%' }}>
+      <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+        <ComboBox
+          options={displayedOptions}
+          selectedKey={selectedKey}
+          disabled={isLoading}
+          placeholder={isLoading ? strings.DropdownLoading : strings.DropdownPlaceholder}
+          allowFreeform={true}
+          autoComplete='off'
+          text={currentText}
+          required={field.required}
+          // Red border + role="alert" for screen readers; the text itself is visually hidden (see HINT_SLOT_WIDTH)
+          errorMessage={showError ? errorMessage : undefined}
+          ariaDescribedBy={hint && !showError ? hintId : undefined}
+          onChange={handleChange}
+          onInputValueChange={handleInputValueChange}
+          onMenuDismissed={() => setFilterText('')}
+          onBlur={() => setTouched(true)}
+          styles={{
+            root: { minWidth: 0, maxWidth: '100%' },
+            errorMessage: hiddenContentStyle,
+            optionsContainerWrapper: { maxHeight: 320 },
+            // The menu follows the width of the field; long entries are cut off instead of widening it
+            callout: { maxWidth: 'min(480px, 90vw)' }
+          }}
+          onRenderOption={(option?: IComboBoxOption) => {
+            if (!option) {
+              return null;
+            }
+            const anchor: ISortedAnchor | undefined = option.data;
+            if (!anchor) {
+              return <span style={ellipsisStyle} title={option.text}>{option.text}</span>;
+            }
+            const suffix: string = anchor.kind === 'heading' ? ` #${anchor.anchorId}` : '';
+            return (
+              <span
+                style={{
+                  ...ellipsisStyle,
+                  paddingLeft: anchor.kind === 'heading' ? Math.max(0, anchor.level - 1) * 10 : 0
+                }}
+                title={`${option.text}${suffix}`}>
+                {option.text}
+                {suffix && <span style={{ color: theme.semanticColors.bodySubtext, marginLeft: 6 }}>{suffix.trim()}</span>}
+              </span>
+            );
+          }}
+        />
+      </div>
+      {/* Fixed slot: always reserved, so showing/hiding a hint never changes width or height */}
+      <span style={{ flex: `0 0 ${HINT_SLOT_WIDTH}px`, width: HINT_SLOT_WIDTH, textAlign: 'center', lineHeight: 1 }}>
+        {hint &&
+          <Icon
+            iconName={hint.iconName}
+            title={hint.text}
+            styles={{ root: { color: hint.color, fontSize: 16, cursor: 'default', verticalAlign: 'middle' } }}
+          />
+        }
+        {hint && !showError &&
+          <span id={hintId} style={visuallyHiddenStyle}>{hint.text}</span>
+        }
+      </span>
     </div>
   );
 };

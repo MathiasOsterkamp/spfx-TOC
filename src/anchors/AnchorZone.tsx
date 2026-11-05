@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ITheme } from '@fluentui/react/lib/Styling';
 import { IAnchorData } from './IAnchor';
 import { anchorServiceManager } from './AnchorServiceManager';
-import { ANCHOR_STATIC_CLASS, INLINE_LINK_STATIC_CLASS } from './anchorStyles';
+import { ANCHOR_STATIC_CLASS, IAnchorClassNames, INLINE_LINK_STATIC_CLASS } from './anchorStyles';
 import { ANCHOR_ATTR, ANCHOR_TARGET_ATTR, applyPermalink, cls, createLinkGlyph, isRTL, toArray } from './anchorUtils';
 import { IAnchorCandidate, collectAnchorCandidates } from './anchorCollector';
 
@@ -172,9 +172,10 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
       return existing as HTMLElement;
     }
     const link: HTMLAnchorElement = this._createAnchorIconElement();
-    link.className = `${link.className} ${cls(this.props.theme).inlineLink} ${INLINE_LINK_STATIC_CLASS}`;
-    // Non-breaking space: gives the otherwise empty target a hoverable area
-    target.appendChild(document.createTextNode('\u00A0'));
+    // Without the "inline" margin class: the icon takes no space until it is shown (see inlineLink).
+    // Hover is detected on the parent (paragraph, list item \u2026), so the target itself stays empty.
+    const c: IAnchorClassNames = cls(this.props.theme);
+    link.className = `${c.anchor} ${c.inlineLink} ${ANCHOR_STATIC_CLASS} ${INLINE_LINK_STATIC_CLASS}`;
     target.appendChild(link);
     return link;
   }

@@ -32,6 +32,23 @@ export const getStyles = (theme: ITheme) => {
       marginTop: 4,
       marginBottom: 0,
     },
+    // Numbered list with hierarchical numbers: 1., 1.1, 1.1.1 … (CSS counter, one per <ul> level)
+    decimalList: {
+      listStyleType: 'none',
+      counterReset: 'toc-item',
+      '& > li': {
+        counterIncrement: 'toc-item',
+      },
+      '& > li::before': {
+        content: 'counters(toc-item, ".") ". "',
+        color: theme.semanticColors.primaryButtonBackground,
+        fontVariantNumeric: 'tabular-nums',
+      },
+      // Sub levels without the trailing dot: "1.1 "
+      '& ul > li::before': {
+        content: 'counters(toc-item, ".") " "',
+      },
+    },
     backItem: {
       borderTop: '1px solid',
       borderBottom: '1px solid',

@@ -208,7 +208,7 @@ const TableOfContents: React.FC<ITableOfContentsProps> = (props: ITableOfContent
             {link.title}
           </a>
           {link.childNodes.length > 0
-            ? <ul className={styles.subUl} style={{ listStyleType: listStyle }}>{renderLinks(wpId, link.childNodes, listStyle, key)}</ul>
+            ? <ul className={`${styles.subUl} ${listClassName}`} style={listInlineStyle}>{renderLinks(wpId, link.childNodes, listStyle, key)}</ul>
             : ''}
         </li>
       );
@@ -217,6 +217,10 @@ const TableOfContents: React.FC<ITableOfContentsProps> = (props: ITableOfContent
 
   // create components from a list of links
   const listStyle: string = LIST_STYLES.indexOf(listStyleValue) >= 0 ? listStyleValue : '';
+  // "decimal" numbers hierarchically (1., 1.1, 1.1.1) via a CSS counter instead of restarting at 1 per level
+  const isDecimal: boolean = listStyle === 'decimal';
+  const listClassName: string = isDecimal ? styles.decimalList : '';
+  const listInlineStyle: React.CSSProperties | undefined = isDecimal ? undefined : { listStyleType: listStyle };
   let toc: JSX.Element;
   if (!isReady) {
     toc = <Shimmer />;
@@ -224,7 +228,7 @@ const TableOfContents: React.FC<ITableOfContentsProps> = (props: ITableOfContent
     toc = <div className={styles.empty}>{source === 'custom' ? strings.NoCustomLinks : strings.NoHeadings}</div>;
   } else {
     toc = (
-      <ul className={styles.firstUl} style={{ listStyleType: listStyle }}>
+      <ul className={`${styles.firstUl} ${listClassName}`} style={listInlineStyle}>
         {renderLinks(webpartId, links, listStyle, 'root')}
       </ul>
     );

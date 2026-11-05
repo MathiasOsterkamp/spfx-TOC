@@ -30,7 +30,7 @@ export interface IAnchorClassNames {
 
 /** Page-wide class sets per theme so cleanup also works across bundles. */
 const holder: { cache: { [themeKey: string]: IAnchorClassNames } } =
-  getGlobal('anchorClassNames.v6', () => ({ cache: {} }));
+  getGlobal('anchorClassNames.v7', () => ({ cache: {} }));
 
 /** Class names for the given theme. Created once per set of theme colors used. */
 export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
@@ -40,6 +40,9 @@ export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
     return holder.cache[key];
   }
   const visible: { opacity: number; transition: string } = { opacity: 1, transition: 'opacity .1s linear' };
+  // Inline icons take no space while hidden (see inlineLink) and get their width back when visible
+  const inlineVisible: { opacity: number; transition: string; width: string; marginLeft: number } =
+    { ...visible, width: 'auto', marginLeft: 5 };
 
   const created: IAnchorClassNames = mergeStyleSets({
     wrapper: {
@@ -95,14 +98,24 @@ export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
     inlineAnchor: {
       display: 'inline',
       selectors: {
-        '&:hover > a': visible,
-        ':hover > & > a': visible,
-        '&:focus-within > a': visible
+        '&:hover > a': inlineVisible,
+        ':hover > & > a': inlineVisible,
+        '&:focus-within > a': inlineVisible
       }
     },
-    // Modifier for the shared anchor icon inside an inline target: in text flow instead of absolute
+    // Modifier for the shared anchor icon inside an inline target: in text flow instead of absolute.
+    // Collapsed to zero width while hidden, so the text does not get a gap; it stays focusable
+    // (no display:none/visibility:hidden) and expands on hover of the paragraph or on keyboard focus.
     inlineLink: {
-      position: 'static'
+      position: 'static',
+      display: 'inline-block',
+      width: 0,
+      marginLeft: 0,
+      overflow: 'hidden',
+      verticalAlign: 'middle',
+      selectors: {
+        ':focus': inlineVisible
+      }
     }
   }) as IAnchorClassNames;
 
