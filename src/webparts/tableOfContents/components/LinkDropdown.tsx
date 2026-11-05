@@ -161,12 +161,11 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
   const anchorMissing: boolean = !isLoading && !!samePageId &&
     !anchors.some((a: ISortedAnchor) => a.anchorId === samePageId);
 
-  // At most one hint per field, the most important one first
+  // Errors: only the red border here, the message is shown in the error callout of the collection
+  // (reported via onCustomFieldValidation). The icon slot is used for non-blocking hints only.
   const showError: boolean = touched && !!errorMessage;
   let hint: IFieldHint | undefined;
-  if (showError) {
-    hint = { text: errorMessage, iconName: 'Error', color: theme.semanticColors.errorText };
-  } else if (anchorMissing) {
+  if (anchorMissing) {
     hint = {
       text: Text.format(strings.WarningAnchorNotOnPage, samePageId as string),
       iconName: 'Warning',
@@ -188,9 +187,10 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
           autoComplete='off'
           text={currentText}
           required={field.required}
-          // Red border + role="alert" for screen readers; the text itself is visually hidden (see HINT_SLOT_WIDTH)
+          // Red border + role="alert" for screen readers; the text itself is visually hidden – it is
+          // visible in the field validation (error callout) of PropertyFieldCollectionData
           errorMessage={showError ? errorMessage : undefined}
-          ariaDescribedBy={hint && !showError ? hintId : undefined}
+          ariaDescribedBy={hint ? hintId : undefined}
           onChange={handleChange}
           onInputValueChange={handleInputValueChange}
           onMenuDismissed={() => setFilterText('')}
@@ -234,7 +234,7 @@ export const LinkDropdown: React.FC<ILinkDropdownProps> = (props: ILinkDropdownP
             styles={{ root: { color: hint.color, fontSize: 16, cursor: 'default', verticalAlign: 'middle' } }}
           />
         }
-        {hint && !showError &&
+        {hint &&
           <span id={hintId} style={visuallyHiddenStyle}>{hint.text}</span>
         }
       </span>

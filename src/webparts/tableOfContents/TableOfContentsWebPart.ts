@@ -22,7 +22,7 @@ import TableOfContents from './components/TableOfContents';
 import { ITableOfContentsProps, SourceType } from './components/ITableOfContentsProps';
 import { ICustomLink, toCustomLinks } from './components/Link';
 import { LinkDropdown } from './components/LinkDropdown';
-import { getUrlErrorMessage } from './components/linkValidationMessages';
+import { getTitleErrorMessage, getUrlErrorMessage } from './components/linkValidationMessages';
 
 export interface ITableOfContentsWebPartProps {
   titleText: string;
@@ -104,7 +104,14 @@ export default class TableOfContentsWebPart extends BaseClientSideWebPart<ITable
         title: strings.LinksColumnTitle,
         type: CustomCollectionFieldType.custom,
         required: true,
-        onCustomRender: (field: ICustomCollectionField, value: any, onUpdate: (fieldId: string, value: any) => void,
+        // Required although LinkDropdown reports via onCustomFieldValidation: after every onUpdate of a
+        // custom field (also for 'url'/'level') the collection runs fieldValidation(titleField, value) and,
+        // without this function, stores the title as valid – overwriting the reported error.
+        // Validated from the current item, because "value" is the value of the updated field (e.g. the URL).
+        // Also used by the collection's check before saving a row.
+        onGetErrorMessage: (value: any, index: number, crntItem: any) =>
+          getTitleErrorMessage(crntItem ? crntItem.title : value),
+        onCustomRender:(field: ICustomCollectionField, value: any, onUpdate: (fieldId: string, value: any) => void,
           item: any, itemId: string, onCustomFieldValidation: (fieldId: string, errorMessage: string) => void) =>
           React.createElement(LinkDropdown, {
             key: itemId,

@@ -172,10 +172,12 @@ export class AnchorZone extends React.Component<IAnchorZoneProps> {
       return existing as HTMLElement;
     }
     const link: HTMLAnchorElement = this._createAnchorIconElement();
-    // Without the "inline" margin class: the icon takes no space until it is shown (see inlineLink).
-    // Hover is detected on the parent (paragraph, list item \u2026), so the target itself stays empty.
+    // Without the "inline" margin class: the non-breaking space provides the gap, the icon itself
+    // takes no space until it is shown on hover/focus (see inlineLink).
     const c: IAnchorClassNames = cls(this.props.theme);
     link.className = `${c.anchor} ${c.inlineLink} ${ANCHOR_STATIC_CLASS} ${INLINE_LINK_STATIC_CLASS}`;
+    // Non-breaking space: stays visible and gives the otherwise empty target a hoverable area
+    target.appendChild(document.createTextNode('\u00a0'));
     target.appendChild(link);
     return link;
   }

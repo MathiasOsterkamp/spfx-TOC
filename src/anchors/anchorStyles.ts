@@ -1,4 +1,4 @@
-import { ITheme, mergeStyleSets } from '@fluentui/react/lib/Styling';
+import { IRawStyle, ITheme, mergeStyleSets } from '@fluentui/react/lib/Styling';
 import { getGlobal } from './globalRegistry';
 
 /**
@@ -40,9 +40,8 @@ export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
     return holder.cache[key];
   }
   const visible: { opacity: number; transition: string } = { opacity: 1, transition: 'opacity .1s linear' };
-  // Inline icons take no space while hidden (see inlineLink) and get their width back when visible
-  const inlineVisible: { opacity: number; transition: string; width: string; marginLeft: number } =
-    { ...visible, width: 'auto', marginLeft: 5 };
+  // Inline icons are out of the text flow while hidden (see inlineLink) and back in the flow when visible
+  const inlineVisible: IRawStyle = { ...visible, position: 'static' };
 
   const created: IAnchorClassNames = mergeStyleSets({
     wrapper: {
@@ -103,16 +102,11 @@ export function getAnchorClassNames(t: ITheme): IAnchorClassNames {
         '&:focus-within > a': inlineVisible
       }
     },
-    // Modifier for the shared anchor icon inside an inline target: in text flow instead of absolute.
-    // Collapsed to zero width while hidden, so the text does not get a gap; it stays focusable
-    // (no display:none/visibility:hidden) and expands on hover of the paragraph or on keyboard focus.
+    // Modifier for the shared anchor icon inside an inline target. While hidden it stays absolute
+    // (inherited from .anchor) and therefore takes no space in the text; it remains focusable
+    // (no display:none/visibility:hidden). On hover of the paragraph or on keyboard focus it moves
+    // into the text flow behind the non-breaking space of the target.
     inlineLink: {
-      position: 'static',
-      display: 'inline-block',
-      width: 0,
-      marginLeft: 0,
-      overflow: 'hidden',
-      verticalAlign: 'middle',
       selectors: {
         ':focus': inlineVisible
       }
